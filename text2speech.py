@@ -270,11 +270,14 @@ class TextToSpeech:
             pygame.mixer.music.set_volume(self.volume)
             pygame.mixer.music.play()
 
+            # Use a more efficient waiting mechanism
+            clock = pygame.time.Clock()
             while pygame.mixer.music.get_busy():
-                pygame.time.Clock().tick(10)
+                clock.tick(20)  # Higher tick rate for smoother playback
 
             pygame.mixer.music.unload()
-            time.sleep(0.1)
+            # Reduced delay after speech
+            time.sleep(0.05)
 
         except Exception as e:
             print(f"Error playing audio: {e}")
@@ -345,7 +348,7 @@ if __name__ == "__main__":
     tts.print_available_voices()
 
     # Test message
-    test_message = "สวัสดีค่า~ หนูเป็น AI VTuber ตัวน้อยที่พร้อมจะพูดคุยกับทุกคนแล้วนะคะ! วันนี้อารมณ์ดีมากเลยล่ะ มีอะไรให้หนูช่วยไหมคะ?"
+    test_message = "ฮายยย~! ไพลินพร้อมเมคเฟรนด์แล้วค่า! อยากคุยเรื่องเกมเหรอ หรือมีเรื่องอะไรให้ช่วยปรึกษาป่ะ? บอกมาได้เล้ย! วันนี้ไพลินอารมณ์ดี๊ดี อยากหาเพื่อนคุยสุดๆ ไปเลยจ้า!"
 
     # Speak the text
     print("\nSpeaking test message...")

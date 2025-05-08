@@ -2,7 +2,7 @@ import speech_recognition as sr
 from text_utils import remove_special_characters
 
 class SpeechToText:
-    def __init__(self, language="th-TH", energy_threshold=300, pause_threshold=1.0):
+    def __init__(self, language="th-TH", energy_threshold=300, pause_threshold=0.7):
         """
         Initialize the speech-to-text converter
 
@@ -17,7 +17,7 @@ class SpeechToText:
                 Higher values mean the microphone is less sensitive
                 Default is 300, which is a good starting point
             pause_threshold (float): Seconds of non-speaking audio before a phrase is considered complete
-                Default is 1.0 (slightly longer than the default 0.8 for better Thai recognition)
+                Default is 0.7 (reduced from 1.0 for more responsive conversation)
         """
         self.recognizer = sr.Recognizer()
         self.language = language
@@ -97,17 +97,42 @@ class SpeechToText:
             return text
 
         except sr.WaitTimeoutError:
-            error_msg = "อืมม หนูรอฟังอยู่นะ แต่ไม่ได้ยินเสียงคุณเลยค่ะ ลองพูดอีกครั้งได้ไหมคะ"
+            # Shorter, more natural error messages for better flow
+            error_messages = [
+                "อืมม ไพลินไม่ได้ยินเลยอ่ะ ลองพูดอีกทีป่ะ?",
+                "ไพลินฟังไม่ได้ยินเลย พูดอีกทีได้ป่ะ?",
+                "เงียบจังเลย ลองพูดใหม่ให้ไพลินฟังนะจ๊ะ"
+            ]
+            import random
+            error_msg = random.choice(error_messages)
             return remove_special_characters(error_msg)
         except sr.UnknownValueError:
-            error_msg = "ขอโทษนะคะ หนูฟังไม่ค่อยชัดเลย อาจจะเพราะหนูหูไม่ดีล่ะมั้งคะ ช่วยพูดอีกครั้งให้หนูฟังหน่อยได้ไหมคะ"
+            error_messages = [
+                "ขอโทษนะ ไพลินฟังไม่ชัดอ่ะ พูดอีกทีได้ป่ะ?",
+                "ไพลินฟังไม่ทันอ่ะ ช่วยพูดอีกทีนะจ๊ะ",
+                "ไพลินไม่เข้าใจที่พูดอ่ะ ลองพูดใหม่ได้ป่ะ?"
+            ]
+            import random
+            error_msg = random.choice(error_messages)
             return remove_special_characters(error_msg)
         except sr.RequestError as e:
-            error_msg = "อุย เหมือนจะมีปัญหาตอนส่งเสียงไปประมวลผลนิดหน่อยค่ะ ลองใหม่อีกครั้งนะคะ หนูขอโทษด้วยนะคะ"
+            error_messages = [
+                "มีปัญหานิดหน่อยอ่ะ ลองใหม่อีกทีนะ ไพลินรอฟังอยู่",
+                "ขอโทษนะ มีปัญหาเล็กน้อย ลองพูดอีกทีให้ไพลินฟังป่ะ?",
+                "ไพลินมีปัญหาเล็กน้อยอ่ะ ลองใหม่ได้ป่ะ?"
+            ]
+            import random
+            error_msg = random.choice(error_messages)
             return remove_special_characters(error_msg)
         except Exception as e:
             print(f"Error in speech recognition: {e}")
-            error_msg = "อุย มีข้อผิดพลาดตอนหนูพยายามฟังเสียงค่ะ หนูงงไปหมดเลย ลองใหม่อีกครั้งได้ไหมคะ"
+            error_messages = [
+                "ขอโทษนะ ไพลินมีข้อผิดพลาด ลองใหม่ป่ะ?",
+                "ไพลินมีปัญหาเล็กน้อยอ่ะ ลองพูดอีกทีได้ป่ะ?",
+                "อุย ไพลินมีปัญหานิดหน่อย ลองใหม่อีกทีนะจ๊ะ"
+            ]
+            import random
+            error_msg = random.choice(error_messages)
             return remove_special_characters(error_msg)
 
 # Example usage

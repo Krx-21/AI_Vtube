@@ -82,12 +82,24 @@ class AIVtuber:
         """Listen for user input, process it, and respond"""
         user_input = self.speech_to_text.listen_for_speech()
 
-        if user_input.startswith("อืมม หนูรอฟังอยู่") or user_input.startswith("ขอโทษนะคะ") or user_input.startswith("อุย เหมือนจะมีปัญหา") or user_input.startswith("อุย มีข้อผิดพลาด"):
+        # Check for common error message patterns with more flexible matching
+        error_patterns = ["ไม่ได้ยิน", "ฟังไม่", "ขอโทษ", "มีปัญหา", "ข้อผิดพลาด", "ลองใหม่", "ลองพูด", "เงียบจัง"]
+        is_error = any(pattern in user_input for pattern in error_patterns)
+
+        if is_error:
             print(f"Speech recognition error: {user_input}")
             self.text_to_speech.speak(user_input)
             return False
 
         print(f"You said: {user_input}")
+
+        # Add a quick acknowledgment for longer inputs to improve conversation flow
+        if len(user_input) > 20:
+            acknowledgments = ["อืมม", "เข้าใจละ", "โอเคๆ", "รับทราบจ้า"]
+            import random
+            ack = random.choice(acknowledgments)
+            print(f"Acknowledgment: {ack}")
+            self.text_to_speech.speak(ack)
 
         response = self.chatbot.chat_with_gemini(user_input)
         print(f"AI response: {response}")
@@ -103,7 +115,13 @@ class AIVtuber:
         """Run the AI VTuber in a continuous loop"""
         self.cleanup_temp_files()
 
-        welcome_message = "สวัสดีค่า หนูเป็น AI VTuber ตัวน้อยที่พร้อมจะพูดคุยกับทุกคนแล้วนะคะ วันนี้อารมณ์ดีมากเลยล่ะ มีอะไรให้หนูช่วยไหมคะ"
+        welcome_messages = [
+            "ฮายยย~! ไพลินพร้อมเมคเฟรนด์แล้วค่า! มีอะไรอยากคุยป่ะ?",
+            "ฮายยย~! ไพลินชื่อนะ! วันนี้อารมณ์ดี๊ดี อยากคุยกับเธอจังเลยค่า!",
+            "ฮายยย~! หนูชื่อไพลิน ยินดีที่ได้รู้จักจ้า! เล่นเกมอะไรอยู่เหรอ?"
+        ]
+        import random
+        welcome_message = random.choice(welcome_messages)
         filtered_welcome = remove_special_characters(welcome_message)
         print(filtered_welcome)
         self.text_to_speech.speak(filtered_welcome)
@@ -114,18 +132,24 @@ class AIVtuber:
         while not should_exit:
             try:
                 should_exit = self.listen_and_respond()
-                time.sleep(0.5)
+                time.sleep(0.2)  # Reduced delay between conversation turns
 
             except KeyboardInterrupt:
                 print("\nExiting...")
                 break
             except Exception as e:
                 print(f"Error in main loop: {e}")
-                error_message = "อุย เหมือนจะมีอะไรขัดข้องนิดหน่อยค่ะ หนูขอโทษด้วยนะคะ ลองใหม่อีกครั้งได้ไหมคะ"
+                error_message = "อุย เหมือนจะมีอะไรขัดข้องนิดหน่อยอ่ะ ไพลินขอโทษด้วยนะ ลองใหม่อีกทีได้ป่ะ?"
                 filtered_error = remove_special_characters(error_message)
                 self.text_to_speech.speak(filtered_error)
 
-        goodbye_message = "อ้าว ได้เวลาไปแล้วเหรอคะ หนูสนุกมากเลยนะที่ได้คุยกับคุณ ไว้มาเล่นกันใหม่นะคะ บายบายค่า"
+        goodbye_messages = [
+            "บายบายจ้า! ไว้มาคุยกับไพลินใหม่นะ เดี๋ยวไพลินรอเลย!",
+            "ขอบคุณที่มาคุยกับไพลินนะ บายบายค่า! ไว้มาเล่นเกมด้วยกันนะ!",
+            "แล้วเจอกันใหม่นะจ๊ะ บายบาย~! อย่าลืมกลับมาเล่นกับไพลินอีกนะ!"
+        ]
+        import random
+        goodbye_message = random.choice(goodbye_messages)
         filtered_goodbye = remove_special_characters(goodbye_message)
         print(filtered_goodbye)
         self.text_to_speech.speak(filtered_goodbye)

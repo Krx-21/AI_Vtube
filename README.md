@@ -1,6 +1,6 @@
-# AI VTuber Application
+# ไพลิน (Pailin) - AI VTuber Application
 
-A Python-based AI VTuber application that combines chatbot, speech-to-text, and text-to-speech functionality to create an interactive virtual assistant. The application features a cheerful, friendly young girl personality that communicates in Thai language with a female voice.
+A Python-based AI VTuber application that combines chatbot, speech-to-text, and text-to-speech functionality to create an interactive virtual assistant. The application features ไพลิน (Pailin), a cheerful, friendly young girl personality that communicates in Thai language with a female voice. The name "ไพลิน" (Pailin) means "sapphire" in Thai, representing brightness and vibrancy.
 
 ## Features
 
@@ -111,7 +111,7 @@ The application is configured to use Thai as the default language. You can chang
 - Updating the system prompt in the `Chatbot` class in `chatbot.py` to specify a different language and personality
 - Changing the `language` parameter in the `TextToSpeech` class in `text2speech.py`
 
-Note that the AI VTuber is designed with a cheerful, friendly young girl personality that responds in Thai. Changing the language will require updating the personality prompt as well for consistency.
+Note that the AI VTuber ไพลิน (Pailin) is designed with a cheerful, friendly young girl personality that responds in Thai. Changing the language will require updating the personality prompt as well for consistency.
 
 ### Gemini Models
 
