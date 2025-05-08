@@ -1,6 +1,15 @@
-google-generativeai>=0.3.0
-python-dotenv>=1.0.0
-SpeechRecognition>=3.10.0
-pygame>=2.5.0
-gTTS>=2.3.2
-PyAudio>=0.2.13
+# Core dependencies
+google-generativeai>=0.3.0  # For Gemini AI API integration
+python-dotenv>=1.0.0        # For environment variable management
+SpeechRecognition>=3.10.0   # For speech-to-text functionality
+pygame>=2.5.0               # For audio playback
+gTTS>=2.3.2                 # For Google Text-to-Speech
+PyAudio>=0.2.13             # For audio input/output
+
+# System utilities
+tempfile                    # For temporary file management (standard library)
+hashlib                     # For hashing text for caching (standard library)
+datetime                    # For timestamp generation (standard library)
+subprocess                  # For system command execution (standard library)
+argparse                    # For command-line argument parsing (standard library)
+glob                        # For file pattern matching (standard library)
