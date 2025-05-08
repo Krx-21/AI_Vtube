@@ -88,14 +88,14 @@ class AIVtuber:
 
         if is_error:
             print(f"Speech recognition error: {user_input}")
-            self.text_to_speech.speak(user_input)
+            self.text_to_speech.speak(user_input) # This user_input is already a Pailin-style error from speech2text
             return False
 
         print(f"You said: {user_input}")
 
         # Add a quick acknowledgment for longer inputs to improve conversation flow
         if len(user_input) > 20:
-            acknowledgments = ["อืมม", "เข้าใจละ", "โอเคๆ", "รับทราบจ้า"]
+            acknowledgments = ["อืมมมม~", "เข้าใจแล้วค่าา", "โอเคเบยยย", "รับทราบจ้าาา!"]
             import random
             ack = random.choice(acknowledgments)
             print(f"Acknowledgment: {ack}")
@@ -116,9 +116,9 @@ class AIVtuber:
         self.cleanup_temp_files()
 
         welcome_messages = [
-            "ฮายยย~! ไพลินพร้อมเมคเฟรนด์แล้วค่า! มีอะไรอยากคุยป่ะ?",
-            "ฮายยย~! ไพลินชื่อนะ! วันนี้อารมณ์ดี๊ดี อยากคุยกับเธอจังเลยค่า!",
-            "ฮายยย~! หนูชื่อไพลิน ยินดีที่ได้รู้จักจ้า! เล่นเกมอะไรอยู่เหรอ?"
+            "ฮายยย~! ไพลินพร้อมเมคเฟรนด์แล้วค่า! มีอะไรอยากคุยป่ะเนี่ย?",
+            "ฮายยย~! ไพลินเองน้า! วันนี้อารมณ์ดี๊ดี อยากคุยกับตัวเองจังเลยค่า!",
+            "ฮายยย~! หนูชื่อไพลิน ยินดีที่ได้รู้จักจ้า! มีอะไรอยากเม้าท์มอยกันไหมเอ่ย?"
         ]
         import random
         welcome_message = random.choice(welcome_messages)
@@ -139,14 +139,14 @@ class AIVtuber:
                 break
             except Exception as e:
                 print(f"Error in main loop: {e}")
-                error_message = "อุย เหมือนจะมีอะไรขัดข้องนิดหน่อยอ่ะ ไพลินขอโทษด้วยนะ ลองใหม่อีกทีได้ป่ะ?"
+                error_message = "อุ๊ย! เหมือนจะมีอะไรติดขัดนิดหน่อยอ่า ไพลินขอโทษด้วยน้า~ ลองใหม่อีกทีได้ป่าวคะ?"
                 filtered_error = remove_special_characters(error_message)
                 self.text_to_speech.speak(filtered_error)
 
         goodbye_messages = [
-            "บายบายจ้า! ไว้มาคุยกับไพลินใหม่นะ เดี๋ยวไพลินรอเลย!",
-            "ขอบคุณที่มาคุยกับไพลินนะ บายบายค่า! ไว้มาเล่นเกมด้วยกันนะ!",
-            "แล้วเจอกันใหม่นะจ๊ะ บายบาย~! อย่าลืมกลับมาเล่นกับไพลินอีกนะ!"
+            "บายบายจ้า! ไว้มาคุยกับไพลินใหม่น้าา~ เดี๋ยวไพลินรอเลย!",
+            "ขอบคุณที่มาคุยกับไพลินนะคะ บ๊ายบายค่า! ไว้มาเม้าท์กันใหม่น้า!",
+            "แล้วเจอกันใหม่นะจ๊ะ บายๆ ค่า! อย่าลืมกลับมาคุยกับไพลินอีกน้า คิดถึงแย่เลย~"
         ]
         import random
         goodbye_message = random.choice(goodbye_messages)
