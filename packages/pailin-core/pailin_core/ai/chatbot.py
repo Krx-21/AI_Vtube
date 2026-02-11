@@ -4,7 +4,6 @@ Chatbot module using Google Gemini API with Pailin personality.
 
 import logging
 import os
-from typing import Optional
 
 import google.generativeai as genai
 
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 class Chatbot:
     """AI chatbot using Google Gemini with Pailin personality."""
 
-    def __init__(self, model: str = DEFAULT_MODEL, api_key: Optional[str] = None):
+    def __init__(self, model: str = DEFAULT_MODEL, api_key: str | None = None):
         """
         Initialize the chatbot with Google Gemini API.
 

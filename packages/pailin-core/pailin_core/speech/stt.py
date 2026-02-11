@@ -5,7 +5,6 @@ Speech-to-text module using Google Speech Recognition API.
 import asyncio
 import logging
 import random
-from typing import Optional
 
 import speech_recognition as sr
 
@@ -52,7 +51,7 @@ class SpeechToText:
         """
         self.recognizer = sr.Recognizer()
         self.language = language
-        self.microphone: Optional[sr.Microphone] = None
+        self.microphone: sr.Microphone | None = None
 
         self.recognizer.energy_threshold = energy_threshold
         self.recognizer.dynamic_energy_threshold = True
@@ -103,7 +102,7 @@ class SpeechToText:
         return remove_special_characters(random.choice(messages))
 
     async def listen_for_speech(
-        self, timeout: Optional[int] = None, phrase_time_limit: Optional[int] = None
+        self, timeout: int | None = None, phrase_time_limit: int | None = None
     ) -> str:
         """
         Listen for speech and convert it to text.

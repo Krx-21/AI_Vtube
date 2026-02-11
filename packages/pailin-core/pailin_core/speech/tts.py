@@ -6,7 +6,6 @@ import hashlib
 import logging
 import os
 import tempfile
-from typing import Optional
 
 import edge_tts
 import pygame

@@ -1,8 +1,8 @@
 """Tests for the chatbot module."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pailin_core.ai.chatbot import Chatbot
 
 
@@ -64,6 +64,8 @@ class TestChatbot:
         assert mock_genai.GenerativeModel.return_value.start_chat.call_count == 2
 
     def test_init_raises_without_api_key(self) -> None:
-        with patch.dict("os.environ", {}, clear=True):
-            with pytest.raises(ValueError, match="GEMINI_API_KEY"):
-                Chatbot()
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            pytest.raises(ValueError, match="GEMINI_API_KEY"),
+        ):
+            Chatbot()

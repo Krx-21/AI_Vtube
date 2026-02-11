@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "pailin-vtube"
 version = "0.2.0"
 description = "ไพลิน (Pailin) – AI VTuber application"
-readme = "../../README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 

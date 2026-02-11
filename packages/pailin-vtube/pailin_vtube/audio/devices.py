@@ -6,7 +6,6 @@ import logging
 import platform
 import shutil
 import subprocess
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,7 @@ def get_audio_devices() -> list[tuple[int, str]]:
     return devices
 
 
-def find_device(device_name: str, devices: Optional[list[tuple[int, str]]] = None) -> Optional[int]:
+def find_device(device_name: str, devices: list[tuple[int, str]] | None = None) -> int | None:
     """
     Find a device index matching *device_name* (case-insensitive).
 

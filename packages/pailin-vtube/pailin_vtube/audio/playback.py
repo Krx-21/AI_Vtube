@@ -2,6 +2,7 @@
 Audio playback utilities.
 """
 
+import contextlib
 import glob
 import logging
 import os
@@ -21,10 +22,8 @@ def init_pygame_mixer() -> None:
 
 def cleanup_temp_files() -> None:
     """Clean up temporary audio files created by TTS modules."""
-    try:
+    with contextlib.suppress(pygame.error):
         pygame.mixer.music.unload()
-    except pygame.error:
-        pass
 
     try:
         temp_dir = tempfile.gettempdir()

@@ -9,15 +9,14 @@ import logging
 import os
 import random
 import tempfile
-import time
 
 from dotenv import load_dotenv
-
 from pailin_core.ai.chatbot import Chatbot
 from pailin_core.config import DEFAULT_CACHE_SIZE, setup_logging
 from pailin_core.speech.stt import ERROR_PATTERNS, SpeechToText
 from pailin_core.speech.tts import TextToSpeech
 from pailin_core.text.sanitizer import remove_special_characters
+
 from pailin_vtube.audio.playback import cleanup_temp_files
 
 load_dotenv()
@@ -120,10 +119,7 @@ class AIVtuber:
         logger.info("AI response: %s", response)
         await self.text_to_speech.speak(response)
 
-        if user_input.lower() in ["exit", "quit", "bye", "goodbye"]:
-            return True
-
-        return False
+        return user_input.lower() in ["exit", "quit", "bye", "goodbye"]
 
     async def run(self) -> None:
         """Run the AI VTuber in a continuous async loop."""

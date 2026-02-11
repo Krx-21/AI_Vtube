@@ -1,6 +1,5 @@
 """Tests for text sanitizer module."""
 
-import pytest
 
 from pailin_core.text.sanitizer import remove_special_characters
 
