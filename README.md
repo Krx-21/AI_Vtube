@@ -8,7 +8,7 @@ A Python-based AI VTuber application that combines chatbot, speech-to-text, and 
 
 - **Chatbot**: Uses Google's Gemini models to generate responses in Thai language with a cheerful, friendly personality
 - **Speech-to-Text**: Converts user's speech to text using Google's speech recognition (configured for Thai language)
-- **Text-to-Speech**: Converts the AI's responses to speech with a female Thai voice using Microsoft Edge TTS
+- **Text-to-Speech**: Converts the AI's responses to speech with a female Thai voice using edge-tts (an unofficial library for Microsoft Edge's TTS service)
 - **Async/Await**: Fully asynchronous implementation for better performance
 - **Monorepo Structure**: Organized into shared core and application-specific packages
 - **Special Character Handling**: Automatically filters out special characters to ensure natural speech output
@@ -250,7 +250,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Acknowledgements
 
 - [Google Gemini API](https://ai.google.dev/) for the chatbot functionality
-- [Microsoft Edge TTS](https://github.com/rany2/edge-tts) for text-to-speech conversion
+- [edge-tts](https://github.com/rany2/edge-tts) - Unofficial library for Microsoft Edge's text-to-speech service
 - [SpeechRecognition](https://pypi.org/project/SpeechRecognition/) for speech-to-text conversion
 - [pygame](https://www.pygame.org/) for audio playback
 - [python-dotenv](https://pypi.org/project/python-dotenv/) for environment variable management
