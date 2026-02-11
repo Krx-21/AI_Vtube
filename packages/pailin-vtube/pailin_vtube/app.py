@@ -3,20 +3,21 @@ Main entry point for the ไพลิน (Pailin) AI VTuber application.
 """
 
 import argparse
+import asyncio
 import glob
 import logging
 import os
 import random
 import tempfile
-import time
 
 from dotenv import load_dotenv
+from pailin_core.ai.chatbot import Chatbot
+from pailin_core.config import DEFAULT_CACHE_SIZE, setup_logging
+from pailin_core.speech.stt import ERROR_PATTERNS, SpeechToText
+from pailin_core.speech.tts import TextToSpeech
+from pailin_core.text.sanitizer import remove_special_characters
 
-from ai_vtube.chatbot import Chatbot
-from ai_vtube.config import DEFAULT_CACHE_SIZE, ERROR_PATTERNS, setup_logging
-from ai_vtube.speech_to_text import SpeechToText
-from ai_vtube.text_to_speech import TextToSpeech
-from ai_vtube.text_utils import remove_special_characters
+from pailin_vtube.audio.playback import cleanup_temp_files
 
 load_dotenv()
 
@@ -24,12 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 class AIVtuber:
-    def __init__(self, cache_size=DEFAULT_CACHE_SIZE):
+    """AI VTuber application orchestrating chatbot, STT, and TTS."""
+
+    def __init__(self, cache_size: int = DEFAULT_CACHE_SIZE):
         """
         Initialize the AI VTuber with all components.
 
         Args:
-            cache_size (int): Maximum number of TTS responses to cache.
+            cache_size: Maximum number of TTS responses to cache.
         """
         logger.info("Initializing AI VTuber...")
 
@@ -44,24 +47,18 @@ class AIVtuber:
         logger.info("Initializing text-to-speech engine...")
         self.text_to_speech = TextToSpeech(cache_size=cache_size)
 
-        if not self.text_to_speech.set_female_voice():
-            logger.info("No female voice found, using default voice")
-            voices = self.text_to_speech.get_available_voices()
-            if voices:
-                self.text_to_speech.set_voice_by_index(0)
-
         logger.info("AI VTuber initialized successfully!")
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    def adjust_for_ambient_noise(self):
+    def adjust_for_ambient_noise(self) -> None:
         """Adjust microphone for ambient noise."""
         self.speech_to_text.adjust_for_ambient_noise()
 
     @staticmethod
-    def _cleanup_temp_files():
+    def _cleanup_temp_files() -> None:
         """Clean up temporary audio files before initialization."""
         try:
             temp_dir = tempfile.gettempdir()
@@ -87,27 +84,27 @@ class AIVtuber:
         except Exception as e:
             logger.warning("Error during initial cleanup: %s", e)
 
-    def cleanup_temp_files(self):
+    def cleanup(self) -> None:
         """Clean up temporary audio files during runtime."""
-        self.text_to_speech.cleanup_temp_files()
+        cleanup_temp_files()
 
     # ------------------------------------------------------------------
     # Conversation loop
     # ------------------------------------------------------------------
 
-    def listen_and_respond(self):
+    async def listen_and_respond(self) -> bool:
         """
         Listen for user input, process it, and respond.
 
         Returns:
-            bool: True if the user wants to exit, False otherwise.
+            True if the user wants to exit, False otherwise.
         """
-        user_input = self.speech_to_text.listen_for_speech()
+        user_input = await self.speech_to_text.listen_for_speech()
 
         is_error = any(pattern in user_input for pattern in ERROR_PATTERNS)
         if is_error:
             logger.info("Speech recognition error: %s", user_input)
-            self.text_to_speech.speak(user_input)
+            await self.text_to_speech.speak(user_input)
             return False
 
         logger.info("You said: %s", user_input)
@@ -116,20 +113,17 @@ class AIVtuber:
             acknowledgments = ["อืมมมม~", "เข้าใจแล้วค่าา", "โอเคเบยยย", "รับทราบจ้าาา"]
             ack = random.choice(acknowledgments)
             logger.info("Acknowledgment: %s", ack)
-            self.text_to_speech.speak(ack)
+            await self.text_to_speech.speak(ack)
 
-        response = self.chatbot.chat_with_gemini(user_input)
+        response = await self.chatbot.chat_with_gemini(user_input)
         logger.info("AI response: %s", response)
-        self.text_to_speech.speak(response)
+        await self.text_to_speech.speak(response)
 
-        if user_input.lower() in ["exit", "quit", "bye", "goodbye"]:
-            return True
+        return user_input.lower() in ["exit", "quit", "bye", "goodbye"]
 
-        return False
-
-    def run(self):
-        """Run the AI VTuber in a continuous loop."""
-        self.cleanup_temp_files()
+    async def run(self) -> None:
+        """Run the AI VTuber in a continuous async loop."""
+        self.cleanup()
 
         welcome_messages = [
             "ฮายยย~ ไพลินพร้อมเมคเฟรนด์แล้วค่า มีอะไรอยากคุยป่ะเนี่ย",
@@ -138,15 +132,15 @@ class AIVtuber:
         ]
         welcome = remove_special_characters(random.choice(welcome_messages))
         logger.info(welcome)
-        self.text_to_speech.speak(welcome)
+        await self.text_to_speech.speak(welcome)
 
         self.adjust_for_ambient_noise()
 
         should_exit = False
         while not should_exit:
             try:
-                should_exit = self.listen_and_respond()
-                time.sleep(0.2)
+                should_exit = await self.listen_and_respond()
+                await asyncio.sleep(0.2)
             except KeyboardInterrupt:
                 logger.info("Exiting...")
                 break
@@ -155,7 +149,7 @@ class AIVtuber:
                 error_msg = remove_special_characters(
                     "อุ๊ย เหมือนจะมีอะไรติดขัดนิดหน่อยอ่า ไพลินขอโทษด้วยน้า~ ลองใหม่อีกทีได้ป่าวคะ"
                 )
-                self.text_to_speech.speak(error_msg)
+                await self.text_to_speech.speak(error_msg)
 
         goodbye_messages = [
             "บายบายจ้า ไว้มาคุยกับไพลินใหม่น้าา~ เดี๋ยวไพลินรอเลย",
@@ -164,12 +158,12 @@ class AIVtuber:
         ]
         goodbye = remove_special_characters(random.choice(goodbye_messages))
         logger.info(goodbye)
-        self.text_to_speech.speak(goodbye)
+        await self.text_to_speech.speak(goodbye)
 
-        self.cleanup_temp_files()
+        self.cleanup()
 
 
-def main():
+def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="AI VTuber Application")
     parser.add_argument(
@@ -192,11 +186,11 @@ def main():
     vtuber = AIVtuber(cache_size=args.cache_size)
 
     try:
-        vtuber.run()
+        asyncio.run(vtuber.run())
     except KeyboardInterrupt:
         logger.info("Exiting gracefully...")
     finally:
-        vtuber.cleanup_temp_files()
+        vtuber.cleanup()
         logger.info("Cleanup complete. Goodbye!")
 
 

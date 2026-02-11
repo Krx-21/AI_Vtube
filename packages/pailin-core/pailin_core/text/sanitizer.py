@@ -1,5 +1,5 @@
 """
-Utility functions for text processing in the AI VTuber application.
+Text processing and sanitization utilities.
 """
 
 # Special characters to remove from text before TTS processing
@@ -36,14 +36,14 @@ _SPECIAL_CHARS = [
 _TRANSLATION_TABLE = str.maketrans('', '', ''.join(_SPECIAL_CHARS))
 
 
-def remove_special_characters(text):
+def remove_special_characters(text: str) -> str:
     """
     Remove special characters from text to prevent the AI from reading them.
 
     Args:
-        text (str): The input text that may contain special characters
+        text: The input text that may contain special characters
 
     Returns:
-        str: The text with special characters removed
+        The text with special characters removed
     """
     return text.translate(_TRANSLATION_TABLE)

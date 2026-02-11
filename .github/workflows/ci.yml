@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y portaudio19-dev python3-pyaudio
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e "./packages/pailin-core[dev]"
+        pip install -e "./packages/pailin-vtube[dev]"
+        pip install -e "./packages/pailin-discord[dev]"
+        pip install ruff mypy pytest pytest-asyncio
+
+    - name: Lint with Ruff
+      run: |
+        ruff check packages/
+
+    - name: Type check with mypy
+      run: |
+        mypy packages/pailin-core/pailin_core --ignore-missing-imports
+        mypy packages/pailin-vtube/pailin_vtube --ignore-missing-imports
+      continue-on-error: true
+
+    - name: Test with pytest
+      run: |
+        pytest packages/pailin-core/tests -v
+        pytest packages/pailin-vtube/tests -v
+      env:
+        GEMINI_API_KEY: test-key-for-ci
