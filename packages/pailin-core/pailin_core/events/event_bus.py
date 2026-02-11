@@ -8,9 +8,10 @@ application components and enabling extensibility.
 import asyncio
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +112,11 @@ class EventBus:
                     await handler(event_type, **data)
                 else:
                     # Sync handler - run in thread pool
+                    # Use functools.partial to avoid lambda capture issue
+                    import functools
                     loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(self._executor, lambda: handler(event_type, **data))
+                    func = functools.partial(handler, event_type, **data)
+                    await loop.run_in_executor(self._executor, func)
             except Exception as e:
                 handler_name = getattr(handler, "__name__", repr(handler))
                 logger.error(

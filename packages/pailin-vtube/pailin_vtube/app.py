@@ -13,6 +13,7 @@ import tempfile
 from dotenv import load_dotenv
 from pailin_core.ai.chatbot import Chatbot
 from pailin_core.config import DEFAULT_CACHE_SIZE, setup_logging
+from pailin_core.events import EventType, emit
 from pailin_core.speech.stt import ERROR_PATTERNS, SpeechToText
 from pailin_core.speech.tts import TextToSpeech
 from pailin_core.text.sanitizer import remove_special_characters
@@ -104,25 +105,34 @@ class AIVtuber:
         is_error = any(pattern in user_input for pattern in ERROR_PATTERNS)
         if is_error:
             logger.info("Speech recognition error: %s", user_input)
+            await emit(EventType.ERROR, message=user_input, source="STT")
             await self.text_to_speech.speak(user_input)
             return False
 
         logger.info("You said: %s", user_input)
+        await emit(EventType.NEW_MESSAGE, text=user_input)
 
         if len(user_input) > 20:
             acknowledgments = ["อืมมมม~", "เข้าใจแล้วค่าา", "โอเคเบยยย", "รับทราบจ้าาา"]
             ack = random.choice(acknowledgments)
             logger.info("Acknowledgment: %s", ack)
+            await emit(EventType.TTS_START, text=ack)
             await self.text_to_speech.speak(ack)
+            await emit(EventType.TTS_END, text=ack)
 
         response = await self.chatbot.chat_with_gemini(user_input)
         logger.info("AI response: %s", response)
+        await emit(EventType.AI_RESPONSE, response=response, user_input=user_input)
+        
+        await emit(EventType.TTS_START, text=response)
         await self.text_to_speech.speak(response)
+        await emit(EventType.TTS_END, text=response)
 
         return user_input.lower() in ["exit", "quit", "bye", "goodbye"]
 
     async def run(self) -> None:
         """Run the AI VTuber in a continuous async loop."""
+        await emit(EventType.APP_START)
         self.cleanup()
 
         welcome_messages = [
@@ -132,7 +142,9 @@ class AIVtuber:
         ]
         welcome = remove_special_characters(random.choice(welcome_messages))
         logger.info(welcome)
+        await emit(EventType.TTS_START, text=welcome)
         await self.text_to_speech.speak(welcome)
+        await emit(EventType.TTS_END, text=welcome)
 
         self.adjust_for_ambient_noise()
 
@@ -146,6 +158,7 @@ class AIVtuber:
                 break
             except Exception as e:
                 logger.error("Error in main loop: %s", e)
+                await emit(EventType.ERROR, message=str(e), source="main_loop")
                 error_msg = remove_special_characters(
                     "อุ๊ย เหมือนจะมีอะไรติดขัดนิดหน่อยอ่า ไพลินขอโทษด้วยน้า~ ลองใหม่อีกทีได้ป่าวคะ"
                 )
@@ -158,9 +171,12 @@ class AIVtuber:
         ]
         goodbye = remove_special_characters(random.choice(goodbye_messages))
         logger.info(goodbye)
+        await emit(EventType.TTS_START, text=goodbye)
         await self.text_to_speech.speak(goodbye)
+        await emit(EventType.TTS_END, text=goodbye)
 
         self.cleanup()
+        await emit(EventType.APP_STOP)
 
 
 def main() -> None:
