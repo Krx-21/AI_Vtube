@@ -2,6 +2,7 @@
 Text-to-speech module using Google Text-to-Speech (gTTS) with pygame playback.
 """
 
+import glob
 import hashlib
 import logging
 import os
@@ -117,7 +118,9 @@ class TextToSpeech:
                         devices.append((idx, name))
 
             elif system == "Darwin":
-                # macOS: use system_profiler
+                # macOS: system_profiler SPAudioDataType outputs device names
+                # as lines without a colon, while metadata lines use "key: value".
+                # This heuristic may miss names containing colons.
                 result = subprocess.run(
                     ["system_profiler", "SPAudioDataType"],
                     capture_output=True, text=True, timeout=10,
@@ -312,8 +315,6 @@ class TextToSpeech:
 
         try:
             temp_dir = tempfile.gettempdir()
-            import glob
-
             temp_files = glob.glob(os.path.join(temp_dir, "tts_temp_*.mp3"))
             if os.path.exists("audio_responses"):
                 temp_files.extend(
