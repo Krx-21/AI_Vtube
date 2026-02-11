@@ -123,7 +123,7 @@ class AIVtuber:
         response = await self.chatbot.chat_with_gemini(user_input)
         logger.info("AI response: %s", response)
         await emit(EventType.AI_RESPONSE, response=response, user_input=user_input)
-        
+
         await emit(EventType.TTS_START, text=response)
         await self.text_to_speech.speak(response)
         await emit(EventType.TTS_END, text=response)

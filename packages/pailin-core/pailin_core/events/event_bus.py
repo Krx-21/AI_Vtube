@@ -6,6 +6,7 @@ application components and enabling extensibility.
 """
 
 import asyncio
+import functools
 import logging
 from collections import defaultdict
 from collections.abc import Callable
@@ -113,7 +114,6 @@ class EventBus:
                 else:
                     # Sync handler - run in thread pool
                     # Use functools.partial to avoid lambda capture issue
-                    import functools
                     loop = asyncio.get_event_loop()
                     func = functools.partial(handler, event_type, **data)
                     await loop.run_in_executor(self._executor, func)
