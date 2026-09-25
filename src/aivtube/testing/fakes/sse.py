@@ -292,7 +292,9 @@ class SseFixtureServer(HttpFixture):
                 if is_text and reply.die_after is not None and i >= reply.die_after:
                     self.killed += 1  # the server drops the connection on purpose
                     if request.transport is not None:
-                        request.transport.abort()
+                        # close() (FIN after flushing), not abort(): on Windows an RST makes the
+                        # client discard already-received but unread chunks.
+                        request.transport.close()
                     return resp
                 if is_text and reply.stall_after is not None and i == reply.stall_after:
                     await asyncio.sleep(reply.stall_s)

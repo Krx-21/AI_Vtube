@@ -57,7 +57,7 @@ def migrate(root: Path, *, dry_run: bool = False) -> list[str]:
             f"schema_version ต้องเป็นจำนวนเต็มบวก แต่ได้ {version!r}",
             f"Set schema_version = {current}.",
             hint_th=f"ตั้ง schema_version = {current}",
-            source=str(USER_FILE),
+            source=USER_FILE.as_posix(),
         )
     if version > current:
         raise ConfigError(
@@ -66,7 +66,7 @@ def migrate(root: Path, *, dry_run: bool = False) -> list[str]:
             f"user.toml ใช้ schema {version} ซึ่งใหม่กว่า aivtube เวอร์ชันนี้ ({current})",
             "Update aivtube, or restore user.toml.bak.",
             hint_th="อัปเดต aivtube หรือกู้ไฟล์ user.toml.bak คืน",
-            source=str(USER_FILE),
+            source=USER_FILE.as_posix(),
         )
     while version < current:
         step = MIGRATIONS.get(version)
@@ -77,7 +77,7 @@ def migrate(root: Path, *, dry_run: bool = False) -> list[str]:
                 f"ไม่มีวิธีย้ายจาก schema {version} ไป {version + 1}",
                 "Restore defaults by renaming user.toml and run aivtube setup again.",
                 hint_th="เปลี่ยนชื่อไฟล์ user.toml แล้วรัน aivtube setup ใหม่",
-                source=str(USER_FILE),
+                source=USER_FILE.as_posix(),
             )
         notes += [f"v{version}→v{version + 1}: {n}" for n in step(data)]
         version += 1

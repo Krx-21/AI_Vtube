@@ -181,7 +181,7 @@ def find_root(start: Path | None = None) -> Path:
         if (folder / DEFAULTS_FILE).is_file():
             return folder
     raise ConfigError(
-        str(DEFAULTS_FILE),
+        DEFAULTS_FILE.as_posix(),
         "Cannot find the AI_Vtube folder (config/defaults.toml).",
         "หาโฟลเดอร์ AI_Vtube (config/defaults.toml) ไม่เจอ",
         "Run aivtube from inside the AI_Vtube folder.",
@@ -234,7 +234,7 @@ def collect_layers(
     root = Path(root)
     defaults = read_toml(root / DEFAULTS_FILE)
     user = dict(user_data) if user_data is not None else read_toml(root / USER_FILE, required=False)
-    _check_schema_version(user, str(USER_FILE))
+    _check_schema_version(user, USER_FILE.as_posix())
     env_layer = env_overrides(os.environ if env is None else env)
     cli = expand_dotted(cli_overrides or {})
 
@@ -251,9 +251,9 @@ def collect_layers(
         )
     overlay = _table(profiles, name)
     named: list[tuple[str, dict[str, Any]]] = [
-        (str(DEFAULTS_FILE), defaults),
+        (DEFAULTS_FILE.as_posix(), defaults),
         (f"profile {name}", overlay),
-        (str(USER_FILE), user),
+        (USER_FILE.as_posix(), user),
         ("environment", env_layer),
         ("command line", cli),
     ]

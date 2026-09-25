@@ -99,7 +99,7 @@ def load_character(
         else:
             user = read_toml(root / USER_FILE, required=False)
             overrides = _mapping(_mapping(user.get("character_overrides")).get(char_id))
-    named = ((str(rel), raw), ("character_overrides", dict(overrides)))
+    named = ((rel.as_posix(), raw), ("character_overrides", dict(overrides)))
     data = expand_character(deep_merge(raw, overrides), char_id)
     try:
         cfg = CharacterConfig.model_validate(data)
@@ -113,7 +113,7 @@ def load_character(
             f"ใน character.toml ตั้ง id = {cfg.id!r} แต่ชื่อโฟลเดอร์คือ {char_id!r}",
             f'Set id = "{char_id}" or rename the folder.',
             hint_th=f'ตั้ง id = "{char_id}" หรือเปลี่ยนชื่อโฟลเดอร์',
-            source=str(rel),
+            source=rel.as_posix(),
         )
     persona = char_dir / cfg.persona
     if not persona.is_file():
@@ -123,7 +123,7 @@ def load_character(
             f"ไม่พบไฟล์บุคลิก {persona.name!r}",
             "Copy persona.th.md from characters/_template/ and edit it.",
             hint_th="คัดลอก persona.th.md จาก characters/_template/ แล้วแก้ไข",
-            source=str(rel),
+            source=rel.as_posix(),
         )
     cfg._root = root
     cfg._dir = char_dir
@@ -143,7 +143,7 @@ def validate_stage(app: AppConfig, chars: Mapping[str, CharacterConfig]) -> None
     shared_ports.pop(app.ports.neuro_sdk, None)  # the default SDK hub port a character may take
     game_ports: dict[int, str] = {}
     for cid, char in chars.items():
-        where = str(CHARACTERS_DIR / cid / "character.toml")
+        where = (CHARACTERS_DIR / cid / "character.toml").as_posix()
         for ident in app.tts_chain_for(char):
             if ident not in app.tts.identities:
                 raise ConfigError(
