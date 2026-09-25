@@ -76,7 +76,7 @@ ignore = [
 "tests/**" = ["B011", "ASYNC"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"  # numpy 2.5 stubs use PEP 695 `type` statements
 warn_unused_configs = true
 ignore_missing_imports = true
 files = ["src/aivtube"]
