@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install PortAudio (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2
+
+      - name: Sync dependencies (frozen lockfile)
+        run: uv sync --frozen --extra voice --extra aec --extra dev
+
+      - name: Ruff
+        run: uv run --frozen ruff check .
+
+      # Config comes from pyproject.toml (strict on contracts/brain/ipc). The explicit target
+      # version matches the interpreter: numpy >= 2.5 (resolved on 3.12) ships 3.12-only stubs.
+      - name: Mypy
+        run: uv run --frozen mypy --python-version ${{ matrix.python-version }}
+
+      - name: Pytest (no GPU, no audio, no network)
+        run: uv run --frozen pytest -m "not nightly and not hardware" --timeout 120

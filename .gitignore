@@ -29,3 +29,5 @@ config/filters/private/
 Thumbs.db
 .idea/
 .vscode/
+config/user.toml.bak
+config/*.tmp

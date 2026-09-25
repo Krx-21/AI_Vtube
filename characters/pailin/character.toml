@@ -1,0 +1,44 @@
+# characters/pailin/character.toml: ไพลิน (Pailin), the default character.
+# Character-scoped settings. Override them for your PC in config/user.toml under
+# [character_overrides.pailin] (e.g. your own model's emotion_map), not here.
+id = "pailin"
+display_name = "Pailin"                      # ASCII: SDK displayName, game UIs
+name_th = "ไพลิน"
+persona = "persona.th.md"
+lexicon = "lexicon.toml"                     # TTS pronunciation hints (Piper drops Latin letters)
+aliases = ["ไพลิน", "pailin", "ไพ่ลิน", "น้องไพลิน"]
+tts_identity_chain = ["premwadee"]           # tts.identity_chain entries are appended after these
+emotions = ["neutral", "happy", "sad", "angry", "surprised", "shy", "smug"]
+cached_phrases = ["Filtered.", "อืม…", "เอ่อ…", "แป๊บนะ…", "เอ๊ะ สมองไพลินค้างแป๊บนึงนะ", "ขอบคุณมากนะคะ"]
+
+[stt_aliases]                                # common STT mishearings -> the real name
+"ไพลิน" = ["ไทลิน", "ไทยลิน", "ไทลิล", "ไภลิน"]
+
+[avatar]
+vts_url = "ws://127.0.0.1:8001"
+vts_window_title = ""                        # set for twins; UDP 47779 discovery picks the instance
+plugin_name = "AI_Vtube Brain"
+plugin_developer = "AI_Vtube"
+token_file = "data/tokens/vts_pailin.txt"
+
+[avatar.emotion_map]                         # verify exp_NN visually in VTS first (example: Live2D sample Mao)
+neutral = { expressions = [], smile = 0.5, brows = 0.5 }
+happy = { expressions = ["exp_03.exp3.json"], smile = 0.9, brows = 0.7 }
+sad = { expressions = ["exp_05.exp3.json"], smile = 0.15, brows = 0.2 }
+angry = { expressions = [], smile = 0.2, brows = 0.1 }
+surprised = { expressions = [], smile = 0.5, brows = 1.0 }
+shy = { expressions = [], smile = 0.7, brows = 0.4 }
+smug = { expressions = [], smile = 0.8, brows = 0.6 }
+
+[memory]
+db = "data/memory/pailin.sqlite"
+
+[safety]
+overlay = "filters.toml"
+
+[games]
+port = 8000
+character_id = "pailin"
+
+[tools]
+enabled = ["remember", "forget"]             # M3 adds stream/avatar/voice/sound tools

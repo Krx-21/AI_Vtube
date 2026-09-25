@@ -1,0 +1,32 @@
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"role":"assistant","content":null}}],"created":1790332028,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"id":"Otsxw1Nmxf6VW3eiERWRYmiU4awvkGFW","type":"function","function":{"name":"set_stream_title","arguments":"{"}}]}}],"created":1790332029,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\""}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"title"}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\":"}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":" \""}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ไ"}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"พล"}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ิน"}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"เล"}}]}}],"created":1790332030,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"่น"}}]}}],"created":1790332031,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"เกม"}}]}}],"created":1790332031,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":" Minecraft"}}]}}],"created":1790332031,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]}}],"created":1790332031,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":"tool_calls","index":0,"delta":{}}],"created":1790332031,"id":"chatcmpl-Ihy5BGXSt2VVZFLAFgXVCXp9qU81JLoz","model":"pailin-4b","system_fingerprint":"b1-1ab7e5a","object":"chat.completion.chunk","timings":{"cache_n":207,"prompt_n":1,"prompt_ms":114.791,"prompt_per_token_ms":114.791,"prompt_per_second":8.711484349818365,"predicted_n":27,"predicted_ms":3004.469,"predicted_per_token_ms":115.5565,"predicted_per_second":8.653775425873922}}
+
+data: [DONE]
+

@@ -1,0 +1,40 @@
+{
+  "model": "pailin-4b",
+  "stream": true,
+  "max_tokens": 64,
+  "temperature": 0.0,
+  "seed": 7,
+  "messages": [
+    {
+      "role": "system",
+      "content": "คุณคือไพลิน สาวไทยร่าเริง ตอบสั้นๆ เป็นภาษาไทย"
+    },
+    {
+      "role": "user",
+      "content": "[chat] tom123: ช่วยเปลี่ยนชื่อไลฟ์เป็น ไพลินเล่นเกม Minecraft หน่อย"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "set_stream_title",
+        "description": "Change the live stream title",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title"
+          ]
+        }
+      }
+    }
+  ],
+  "parallel_tool_calls": true,
+  "id_slot": 1,
+  "cache_prompt": true
+}

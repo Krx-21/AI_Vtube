@@ -1,0 +1,41 @@
+# characters/_template/character.toml: copy this folder to characters/<your_id>/ to make a
+# new character, then edit the lines marked EDIT. "{character}" expands to the folder name,
+# so the id and the data paths work without changes.
+# Add the id to `characters` in config/user.toml (e.g. characters = ["pailin", "<your_id>"]).
+id = "{character}"                           # must equal the folder name
+display_name = "NewCharacter"                # EDIT: ASCII, shown by game SDKs and VTS
+name_th = "ตัวละครใหม่"                      # EDIT: Thai name
+persona = "persona.th.md"
+lexicon = "lexicon.toml"
+aliases = ["ตัวละครใหม่", "newcharacter"]    # EDIT: names she answers to (what STT hears)
+tts_identity_chain = ["premwadee"]           # EDIT: a [tts.identities.*] entry (twin: an Azure-only voice)
+emotions = ["neutral", "happy", "sad", "angry", "surprised", "shy", "smug"]
+cached_phrases = ["Filtered.", "อืม…", "เอ่อ…", "แป๊บนะ…", "ขอบคุณมากนะคะ"]   # keep "Filtered."
+
+[stt_aliases]                                # EDIT: common mishearings of her name
+# "ตัวละครใหม่" = ["ตัวละคอนใหม่"]
+
+[avatar]
+vts_url = "ws://127.0.0.1:8001"              # a second VTS instance usually listens on 8002
+vts_window_title = ""                        # set when two VTS instances run (UDP discovery)
+plugin_name = "AI_Vtube Brain"
+plugin_developer = "AI_Vtube"
+token_file = "data/tokens/vts_{character}.txt"
+
+[avatar.emotion_map]                         # EDIT: your model's expression files (check in VTS)
+neutral = { expressions = [], smile = 0.5, brows = 0.5 }
+happy = { expressions = [], smile = 0.9, brows = 0.7 }
+sad = { expressions = [], smile = 0.15, brows = 0.2 }
+
+[memory]
+db = "data/memory/{character}.sqlite"
+
+[safety]
+overlay = "filters.toml"
+
+[games]
+port = 8010                                  # the second character's SDK hub; Pailin uses 8000
+character_id = "{character}"
+
+[tools]
+enabled = ["remember", "forget"]

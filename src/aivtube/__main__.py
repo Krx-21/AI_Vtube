@@ -6,7 +6,8 @@ import sys
 def _main() -> int:
     from aivtube.cli import main
 
-    return main()
+    code: int = main()
+    return code
 
 
 if __name__ == "__main__":

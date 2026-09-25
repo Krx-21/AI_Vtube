@@ -1,0 +1,31 @@
+# config/user.toml.example: copy to config/user.toml (gitignored) or let `aivtube setup`
+# write it. Only list what differs from config/defaults.toml. Secrets go in .env, not here.
+schema_version = 1
+active_profile = "stream"            # "light" until the 30B model has downloaded and verified
+
+[audio]
+output_device = "Headphones"         # part of the WASAPI device name; "" = Windows default
+input_device = "Microphone"
+headphones = true
+
+[mic]
+mode = "open"                        # open | ptt | deafened
+
+[chat]
+sources = ["twitch_irc"]
+
+[chat.twitch_irc]
+channel = "your_channel"             # the login name from twitch.tv/<name>
+
+[privacy]
+cloud_llm_consent = false            # true lets Typhoon API / Gemini act as LLM fallbacks
+cloud_stt_consent = false
+
+# Written by `aivtube bench llm --tune` after measuring this PC:
+# [llm.servers.local30b]
+# placement = "pinned"
+# pinned_n_cpu_moe = 38
+
+# Your own Live2D model's expressions (check the file names in VTube Studio):
+# [character_overrides.pailin.avatar.emotion_map]
+# happy = { expressions = ["exp_01.exp3.json"], smile = 0.9, brows = 0.7 }

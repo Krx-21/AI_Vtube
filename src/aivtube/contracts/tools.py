@@ -4,19 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias, runtime_checkable
+from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
 
+from aivtube.contracts.avatar import AvatarSink
+from aivtube.contracts.chat import ChannelActions
+from aivtube.contracts.infra import Clock, EventBus
 from aivtube.contracts.llm import ToolCall, ToolSpec
+from aivtube.contracts.memory import MemoryStore
+from aivtube.contracts.speech import SpeechOutput
 from aivtube.contracts.types import Platform, Stimulus
-
-if TYPE_CHECKING:
-    from typing import Any
-
-    from aivtube.contracts.avatar import AvatarSink
-    from aivtube.contracts.chat import ChannelActions
-    from aivtube.contracts.infra import Clock, EventBus
-    from aivtube.contracts.memory import MemoryStore
-    from aivtube.contracts.speech import SpeechOutput
 
 __all__ = [
     "RateLimit",

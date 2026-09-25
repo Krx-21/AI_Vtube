@@ -7,15 +7,13 @@ suites can use ``isinstance`` (which checks member presence, not signatures).
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, runtime_checkable
+from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
 
 from aivtube.contracts.events import Event
 from aivtube.contracts.types import Health
-
-if TYPE_CHECKING:
-    import asyncio
 
 __all__ = [
     "Clock",

@@ -73,12 +73,23 @@ class AudioBackend(Protocol):
 
 @runtime_checkable
 class AudioOut(Protocol):
-    """Always-open player. ``reference`` holds post-gain ``(t, block)`` pairs for AEC."""
+    """Always-open player. ``reference`` holds post-gain ``(t, block)`` pairs for AEC.
 
-    sample_rate: int
-    output_latency_s: float
-    reference: collections.deque[tuple[float, F32]]
-    stats: Mapping[str, int]
+    The data members are read-only for consumers; an implementation may provide them as plain
+    attributes (for example ``self.stats = collections.Counter()``) or as properties.
+    """
+
+    @property
+    def sample_rate(self) -> int: ...
+
+    @property
+    def output_latency_s(self) -> float: ...
+
+    @property
+    def reference(self) -> collections.deque[tuple[float, F32]]: ...
+
+    @property
+    def stats(self) -> Mapping[str, int]: ...
 
     def start(self) -> None: ...
 
@@ -102,9 +113,16 @@ class AudioOut(Protocol):
 
 @runtime_checkable
 class AudioIn(Protocol):
-    sample_rate: int
-    block_samples: int
-    stats: Mapping[str, int]
+    """Mic capture. Data members are read-only for consumers (attributes or properties)."""
+
+    @property
+    def sample_rate(self) -> int: ...
+
+    @property
+    def block_samples(self) -> int: ...
+
+    @property
+    def stats(self) -> Mapping[str, int]: ...
 
     def start(self, on_frame: Callable[[F32, float], None]) -> None:
         """Deliver ``(block, t_capture)`` from the capture thread."""

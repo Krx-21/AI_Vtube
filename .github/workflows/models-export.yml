@@ -1,0 +1,112 @@
+name: models-export
+
+# Manual job: export Typhoon ASR Realtime to int8 ONNX, verify it with the project's own
+# sherpa-onnx, then publish it as assets of a GitHub Release (see models/README.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: typhoon-ai/typhoon-asr-realtime commit to export
+        required: true
+        default: 2c58a30ba9a3bf92d095a5df91bec6996f04c3a1
+      tag:
+        description: GitHub Release tag to create or update
+        required: true
+        default: models-typhoon-rt-v1
+      allow_unverified:
+        description: Publish even if the edge-tts sample cannot be generated (load-and-decode smoke test only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: models-export
+  cancel-in-progress: false
+
+jobs:
+  typhoon-rt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      OUT: dist/typhoon-rt
+      REVISION: ${{ inputs.revision }}
+      TAG: ${{ inputs.tag }}
+      ALLOW_UNVERIFIED: ${{ inputs.allow_unverified }}
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # torch and NeMo never enter the aivtube venv: they live in a throwaway venv.
+      - name: Create the throwaway export venv (torch CPU + NeMo 3.0.0)
+        run: |
+          python -m venv "$RUNNER_TEMP/export-venv"
+          PY="$RUNNER_TEMP/export-venv/bin/python"
+          "$PY" -m pip install --upgrade pip
+          "$PY" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          "$PY" -m pip install "nemo_toolkit[asr]==3.0.0" "onnx==1.23.0" "onnxruntime==1.30.0" huggingface_hub
+          "$PY" -m pip freeze > "$RUNNER_TEMP/export-venv-freeze.txt"
+
+      - name: Export encoder/decoder/joiner int8 ONNX + tokens.txt
+        run: |
+          "$RUNNER_TEMP/export-venv/bin/python" tools/export_typhoon_rt_onnx.py \
+            --out "$OUT" --revision "$REVISION"
+          ls -l "$OUT"
+
+      - name: Set up uv (aivtube runtime)
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install the aivtube voice runtime (sherpa-onnx 1.13.8, edge-tts, PyAV)
+        run: uv sync --frozen --extra voice
+
+      - name: Verify with sherpa-onnx on a generated Thai sample
+        run: |
+          extra=""
+          if [ "$ALLOW_UNVERIFIED" = "true" ]; then extra="--allow-synthetic"; fi
+          uv run --frozen python tools/verify_typhoon_rt_onnx.py "$OUT" $extra
+
+      - name: Keep the files as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: typhoon-rt-int8-onnx
+          path: |
+            ${{ env.OUT }}/*.int8.onnx
+            ${{ env.OUT }}/tokens.txt
+            ${{ env.OUT }}/SHA256SUMS
+            ${{ env.OUT }}/README.md
+          retention-days: 7
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cd "$OUT"
+          files="encoder.int8.onnx decoder.int8.onnx joiner.int8.onnx tokens.txt SHA256SUMS README.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" $files --clobber
+          else
+            gh release create "$TAG" $files \
+              --title "Typhoon ASR Realtime int8 ONNX ($TAG)" \
+              --notes-file README.md \
+              --target "$GITHUB_SHA"
+          fi
+
+      - name: Summary (pin these in models/manifest.toml)
+        run: |
+          {
+            echo "### Published \`$TAG\` from typhoon-ai/typhoon-asr-realtime@$REVISION"
+            echo '```'
+            cat "$OUT/SHA256SUMS"
+            ls -l "$OUT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

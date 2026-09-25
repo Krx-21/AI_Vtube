@@ -1,0 +1,5 @@
+# TTS pronunciation hints: English word -> Thai-script reading (needed by the offline Piper
+# voice, which drops Latin letters). See characters/pailin/lexicon.toml for more examples.
+[words]
+"AI" = "เอไอ"
+"VTuber" = "วีทูบเบอร์"
