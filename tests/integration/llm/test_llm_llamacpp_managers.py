@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import socket
 import sys
 from collections.abc import AsyncIterator, Callable
@@ -176,6 +177,12 @@ async def test_spawn_kills_a_server_loading_past_the_load_timeout(tmp_path: Path
     m = LlamaServerManager([spec], graceful_timeout_s=2.0, load_timeout_s=0.5)
     try:
         assert await m.ensure_running("local30b", 1.0) is False
+        if m.process("local30b") is not None:
+            # The probe before the spawn ate the budget (a refused loopback connect takes ~2 s
+            # on Windows), so the server was still young. Once it is past the load timeout,
+            # the next call stops it.
+            await asyncio.sleep(0.6)
+            assert await m.ensure_running("local30b", 1.0) is False
         assert m.process("local30b") is None
     finally:
         await m.aclose()
