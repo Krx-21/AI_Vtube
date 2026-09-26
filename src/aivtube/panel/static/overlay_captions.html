@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คำบรรยาย (OBS)</title>
+<style>
+/* OBS browser source: transparent page, caption box pinned to the bottom.
+   URL options: ?token=…&character=pailin&size=44&align=center&linger=2.5&bg=0.35 */
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+body {
+  display: flex; align-items: flex-end; justify-content: center; padding: 0 4vw 5vh;
+  box-sizing: border-box; font-family: "Noto Sans Thai", "Leelawadee UI", "Segoe UI", system-ui, sans-serif;
+}
+#caption {
+  max-width: 92vw; padding: .25em .6em; border-radius: .35em; color: #fff; font-weight: 700;
+  font-size: var(--size, 44px); line-height: 1.35; text-align: var(--align, center);
+  background: rgba(0, 0, 0, var(--bg, .35));
+  text-shadow: 0 0 4px #000, 0 2px 3px #000, 0 0 1px #000;
+  opacity: 0; transition: opacity .18s ease-out; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+#caption.show { opacity: 1; }
+#caption.filtered { color: #ff6b6b; letter-spacing: .04em; }
+@media (prefers-reduced-motion: reduce) { #caption { transition: none; } }
+</style>
+</head>
+<body>
+<div id="caption" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+(() => {
+  const params = new URLSearchParams(location.search);
+  const token = params.get("token") || "";
+  const character = params.get("character") || "";
+  const linger = Math.max(0.5, Number(params.get("linger")) || 2.5) * 1000;
+  const box = document.getElementById("caption");
+  const size = Number(params.get("size"));
+  if (size > 8 && size < 300) box.style.setProperty("--size", `${size}px`);
+  const align = params.get("align");
+  if (align === "left" || align === "right" || align === "center") box.style.setProperty("--align", align);
+  const bg = Number(params.get("bg"));
+  if (bg >= 0 && bg <= 1 && params.has("bg")) box.style.setProperty("--bg", String(bg));
+
+  let hideTimer = null;
+  let filteredHold = false;   // "Filtered." is (about to be) on screen; later captions wait
+  let currentUtt = null;
+  let playingUntil = 0;       // core perf_counter time when the last started segment ends
+  const timers = new Set();
+  const FILTERED_MS = () => Math.max(linger, 4000);
+
+  function show(text, filtered = false) {
+    clearTimeout(hideTimer);
+    box.textContent = text;
+    box.classList.toggle("filtered", filtered);
+    box.classList.add("show");
+  }
+  function hideLater(ms) {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { box.classList.remove("show"); filteredHold = false; }, ms);
+  }
+  function clearPending() {
+    for (const t of timers) clearTimeout(t);
+    timers.clear();
+  }
+  // Show at the audible time: t_audible and frame.now are the core's perf_counter seconds.
+  // Delays beyond 3 s mean the clocks disagree; show at once rather than never.
+  function at(delaySec, fn) {
+    if (!(delaySec > 0.01) || delaySec > 3) { fn(); return; }
+    const t = setTimeout(() => { timers.delete(t); fn(); }, delaySec * 1000);
+    timers.add(t);
+  }
+
+  const isFilteredCaption = (text) => /^\s*filtered\.?\s*$/i.test(text || "");
+  // §4.10: the segment already playing was clean and finishes; "Filtered." follows it.
+  function showFiltered(now) {
+    if (filteredHold) return;
+    filteredHold = true;
+    at(playingUntil - now, () => { show("Filtered.", true); hideLater(FILTERED_MS()); });
+  }
+
+  function onEvent(ev, now) {
+    if (character && ev.character && ev.character !== character) return;
+    switch (ev.type) {
+      case "UtteranceStarted":
+        currentUtt = ev.utt_id;
+        filteredHold = false;
+        break;
+      case "SegmentStarted": {
+        const canned = isFilteredCaption(ev.caption);
+        if (filteredHold && !canned) break;  // dropped after the block: never shown
+        currentUtt = ev.utt_id;
+        const end = ev.t_audible + (ev.duration_s || 0);
+        playingUntil = Math.max(playingUntil, end);
+        at(ev.t_audible - now, () => {  // started before any block: it is heard, so shown
+          show(canned ? "Filtered." : (ev.caption || ""), canned);
+          hideLater((ev.duration_s || 0) * 1000 + (canned ? FILTERED_MS() : linger));
+        });
+        break;
+      }
+      case "Filtered":
+        if (ev.direction === "out") showFiltered(now);
+        break;
+      case "UtteranceDone":
+        if (ev.filtered) showFiltered(now);
+        else if (ev.utt_id === currentUtt && !filteredHold) hideLater(linger);
+        break;
+      case "StateChanged":
+        if (ev.new === "paused") { clearPending(); playingUntil = 0; hideLater(0); }
+        break;
+      default:
+        break;
+    }
+  }
+
+  let backoff = 500;
+  function connect() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const types = "UtteranceStarted,SegmentStarted,UtteranceDone,Filtered,StateChanged";
+    const q = new URLSearchParams({ token, types });
+    if (character) q.set("character", character);
+    const ws = new WebSocket(`${proto}://${location.host}/ws?${q}`);
+    ws.addEventListener("open", () => { backoff = 500; });
+    ws.addEventListener("message", (msg) => {
+      let frame;
+      try { frame = JSON.parse(msg.data); } catch (_) { return; }
+      if (frame.kind !== "events") return;
+      for (const ev of frame.events || []) {
+        try { onEvent(ev, frame.now); } catch (err) { console.error(err); }
+      }
+    });
+    ws.addEventListener("close", () => {
+      setTimeout(connect, backoff);
+      backoff = Math.min(backoff * 2, 10000);
+    });
+  }
+  if (token) connect();
+  else console.warn("overlay: add ?token=… to the OBS browser source URL");
+})();
+</script>
+</body>
+</html>

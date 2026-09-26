@@ -274,3 +274,27 @@ if TYPE_CHECKING:
 
     def _layered_safety_gate(x: LayeredSafetyGate) -> safety.SafetyGate:
         return x
+
+    # panel (WP12)
+    from aivtube.panel.control import CoreControl
+    from aivtube.panel.server import PanelServer
+
+    def _core_control(x: CoreControl) -> control.ControlSurface:
+        return x
+
+    def _panel_server(x: PanelServer) -> infra.Component:
+        return x
+
+    # panel: the operator's tool-approval queue is PolicyToolRegistry's approval callback
+    from aivtube.panel.approvals import ToolApprovalQueue
+    from aivtube.tools.registry import ApprovalCallback
+
+    def _tool_approval_queue(x: ToolApprovalQueue) -> ApprovalCallback:
+        return x
+
+    # brain (WP7): what the panel's CoreControl needs from each character's Brain
+    from aivtube.brain.loop import Brain
+    from aivtube.panel.control import BrainControl
+
+    def _brain_control(x: Brain) -> BrainControl:
+        return x

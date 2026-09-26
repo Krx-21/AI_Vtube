@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>แผงควบคุม AI VTuber</title>
+<style>
+:root {
+  --bg: #0e1016; --panel: #161a22; --panel-2: #1c212b; --border: #2a303c; --text: #e7eaf0;
+  --muted: #9aa3b3; --accent: #5aa9ff; --ok: #3ecf8e; --warn: #f5a524; --bad: #ff5c5c;
+  --info: #7aa2ff; --freeze: #d42a2a; --go: #1f9d62; --radius: 10px;
+  --font: "Noto Sans Thai", "Leelawadee UI", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Noto Sans Mono", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--font); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 12px; cursor: pointer; min-height: 34px;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+button[aria-pressed="true"] {
+  background: #23406a; border-color: var(--accent);
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input, select, textarea {
+  background: #10131a; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+}
+textarea { width: 100%; resize: vertical; min-height: 54px; }
+kbd {
+  font: 11px var(--mono); border: 1px solid #4a5263; border-bottom-width: 2px; border-radius: 4px;
+  padding: 0 4px; margin-left: 6px; color: var(--muted);
+}
+h1 { font-size: 17px; margin: 0; font-weight: 600; }
+h2 { font-size: 14px; margin: 0 0 10px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-size: 12px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row + .row { margin-top: 8px; }
+.grow { flex: 1 1 auto; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px 16px;
+  align-items: center; padding: 10px 16px; background: #0b0d12ee; border-bottom: 1px solid var(--border);
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel-2); font-weight: 600; font-size: 13px;
+}
+.badge[data-tone="ok"] { border-color: var(--ok); color: var(--ok); }
+.badge[data-tone="warn"] { border-color: var(--warn); color: var(--warn); }
+.badge[data-tone="bad"] { border-color: var(--bad); color: var(--bad); }
+.badge[data-tone="info"] { border-color: var(--info); color: var(--info); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; flex: none; }
+.dot[data-state="ok"] { background: var(--ok); }
+.dot[data-state="degraded"], .dot[data-state="starting"] { background: var(--warn); }
+.dot[data-state="down"], .dot[data-state="failed"] { background: var(--bad); }
+.dot[data-state="disabled"] { background: #555c6b; }
+#now-caption { color: var(--muted); max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.alarm {
+  display: flex; gap: 12px; align-items: center; padding: 10px 16px; font-weight: 600;
+  background: #3a1616; border-bottom: 1px solid var(--bad); color: #ffd7d7;
+}
+.alarm[data-level="warn"] { background: #3a2c10; border-color: var(--warn); color: #ffe6b3; }
+.alarm[data-level="info"] { background: #14243d; border-color: var(--info); color: #d6e4ff; }
+.alarm .grow { white-space: pre-line; }
+
+main.grid {
+  display: grid; gap: 14px; padding: 14px 16px 40px;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+}
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.card.wide { grid-column: span 2; }
+@media (max-width: 720px) { .card.wide { grid-column: auto; } }
+.scroll { max-height: 320px; overflow: auto; }
+
+.kill-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.kill-row + .kill-row { margin-top: 8px; }
+.kill-row button { min-height: 52px; font-weight: 700; }
+button.freeze { background: var(--freeze); border-color: #ff7b7b; color: #fff; font-size: 16px; }
+button.freeze:hover { background: #ea3434; }
+button.go { background: #164f37; border-color: var(--go); }
+button.danger { background: #2a1111; border-color: #a23; color: #ffb4b4; }
+button.danger[data-armed="true"] { background: #a31d1d; color: #fff; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; border-right: 1px solid var(--border); }
+.seg button:last-child { border-right: 0; }
+button.ptt { width: 100%; min-height: 56px; margin-top: 10px; font-weight: 700; user-select: none; touch-action: none; }
+button.ptt[aria-pressed="true"] { background: #1f6f47; border-color: var(--ok); }
+
+#health-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+#health-list li { display: flex; gap: 8px; align-items: center; padding: 6px 8px; background: var(--panel-2); border-radius: 8px; min-width: 0; }
+#health-list .name { font-weight: 600; }
+#health-list .detail { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.feed { list-style: none; margin: 0; padding: 0; }
+.feed li { padding: 6px 4px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.feed .meta { color: var(--muted); font-size: 12px; }
+.feed .actions { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+.feed .actions button { min-height: 28px; padding: 3px 8px; font-size: 12px; }
+.tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--border); color: var(--muted); margin-right: 4px; }
+.tag.support { color: var(--warn); border-color: var(--warn); }
+.tag.bad { color: var(--bad); border-color: var(--bad); }
+.score { font-family: var(--mono); color: var(--accent); }
+
+.wf-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.wf-legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; background: var(--c); }
+.wf-row { display: grid; grid-template-columns: 120px 1fr 64px; gap: 8px; align-items: center; font-size: 12px; margin: 3px 0; }
+.wf-label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-bar { position: relative; height: 14px; background: #10131a; border-radius: 4px; overflow: hidden; }
+.wf-bar span { position: absolute; top: 0; bottom: 0; background: var(--c); }
+.wf-bar .budget { width: 2px; background: #ffffff66; }
+.wf-ttfa { text-align: right; font-family: var(--mono); }
+.wf-ttfa[data-over="true"] { color: var(--warn); }
+
+.approval-args { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
+#approvals-card { border-color: var(--warn); }
+#tool-list button { min-height: 28px; padding: 2px 8px; font-size: 12px; }
+.mem-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+tr[data-status="quarantined"] td:first-child { box-shadow: inset 3px 0 var(--warn); }
+tr[data-status="deleted"] { opacity: .55; }
+.mem-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.mem-actions button { min-height: 28px; padding: 2px 8px; font-size: 12px; }
+
+#toast { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 6px; z-index: 20; max-width: min(420px, 90vw); }
+#toast div { background: var(--panel-2); border: 1px solid var(--border); border-left: 4px solid var(--ok); border-radius: 8px; padding: 8px 12px; }
+#toast div[data-tone="bad"] { border-left-color: var(--bad); }
+#toast div[data-tone="warn"] { border-left-color: var(--warn); }
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); max-width: 420px; }
+dialog::backdrop { background: #000a; }
+@media (prefers-reduced-motion: no-preference) {
+  #toast div { animation: fade .2s ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <h1>แผงควบคุม <span id="char-title">AI VTuber</span></h1>
+  <label class="row" id="char-picker" hidden>
+    <span class="muted">ตัวละคร</span>
+    <select id="char-select" aria-label="เลือกตัวละคร"></select>
+  </label>
+  <span class="badge" id="state-badge" role="status" aria-live="polite" title="สถานะของสมอง">—</span>
+  <span class="badge" id="conn-badge" data-tone="bad" title="การเชื่อมต่อกับ core">ไม่ได้เชื่อมต่อ</span>
+  <span class="badge" id="lat-voice" title="เสียง: p50 / p95 เทียบกับงบเวลา">เสียง —</span>
+  <span class="badge" id="lat-chat" title="แชท: p50 เทียบกับงบเวลา">แชท —</span>
+  <span id="now-caption" aria-live="off"></span>
+</header>
+
+<div class="alarm" id="alarm" role="alert" hidden>
+  <span class="grow" id="alarm-text"></span>
+  <button type="button" id="alarm-hardkill" hidden>HARD KILL</button>
+  <button type="button" id="alarm-close" aria-label="ปิดการแจ้งเตือน">ปิด</button>
+</div>
+
+<main class="grid">
+  <section class="card" aria-labelledby="h-kill">
+    <h2 id="h-kill">หยุดฉุกเฉิน</h2>
+    <div class="kill-row">
+      <button type="button" id="btn-skip" title="ตัดประโยคที่กำลังพูด">ข้าม<kbd>S</kbd></button>
+      <button type="button" id="btn-mute" aria-pressed="false" title="ปิดเสียงออก (ยังคิดต่อ)">ปิดเสียง<kbd>M</kbd></button>
+      <button type="button" id="btn-freeze" class="freeze" title="หยุด LLM และเสียงทันที">FREEZE<kbd>F</kbd></button>
+    </div>
+    <div class="kill-row">
+      <button type="button" id="btn-resume" title="กลับมาทำงานหลัง FREEZE">RESUME</button>
+      <button type="button" id="btn-golive" class="go" title="เปิดรับแชทและตัวจับเวลาว่าง">GO LIVE</button>
+      <button type="button" id="btn-hardkill" class="danger" data-armed="false" title="ตัดเสียงผ่าน launcher (ไม่ขึ้นกับ core)">HARD KILL</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span class="muted">รับแชท</span>
+      <button type="button" id="btn-chat-on">เปิด</button>
+      <button type="button" id="btn-chat-off">ปิด</button>
+    </div>
+    <p class="hint">FREEZE: ถ้า core ไม่ตอบภายใน 300 ms แผงจะสั่ง HARD KILL ที่ launcher ให้เองทันที</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-mic">
+    <h2 id="h-mic">ไมโครโฟน</h2>
+    <div class="seg" role="group" aria-label="โหมดไมโครโฟน" id="mic-modes">
+      <button type="button" aria-pressed="false" data-mode="open">เปิดตลอด</button>
+      <button type="button" aria-pressed="false" data-mode="ptt">กดเพื่อพูด</button>
+      <button type="button" aria-pressed="false" data-mode="deafened">ไม่ฟัง (คุยกับแชท)</button>
+    </div>
+    <button type="button" id="ptt-hold" class="ptt" aria-pressed="false">กดค้างเพื่อพูด<kbd>T</kbd></button>
+    <p class="hint">ปุ่มลัด AutoHotkey / Stream Deck: <span class="mono">/hotkey/ptt_down</span>, <span class="mono">ptt_up</span>, <span class="mono">deafen_toggle</span></p>
+  </section>
+
+  <section class="card" aria-labelledby="h-health">
+    <h2 id="h-health">สถานะระบบ</h2>
+    <ul id="health-list"><li class="muted">ยังไม่มีข้อมูล</li></ul>
+  </section>
+
+  <section class="card" aria-labelledby="h-speak">
+    <h2 id="h-speak">สั่งพูด / สั่งการ</h2>
+    <label for="say-text" class="muted">SAY — ให้พูดประโยคนี้ตรงๆ (ข้าม LLM)</label>
+    <textarea id="say-text" maxlength="600" placeholder="ข้อความที่จะให้พูด… (Ctrl+Enter เพื่อส่ง)"></textarea>
+    <div class="row"><button type="button" id="btn-say">พูดเลย</button></div>
+    <label for="direct-text" class="muted" style="display:block;margin-top:10px">DIRECT — คำสั่งให้ LLM (ไม่อ่านออกเสียง)</label>
+    <textarea id="direct-text" maxlength="600" placeholder="เช่น เปลี่ยนเรื่องไปคุยเรื่องเกมที่กำลังเล่น"></textarea>
+    <div class="row"><button type="button" id="btn-direct">ส่งคำสั่ง</button></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-approve" id="approvals-card" hidden>
+    <h2 id="h-approve">เครื่องมือรออนุมัติ</h2>
+    <ul class="feed" id="approval-list" aria-live="polite"></ul>
+    <p class="hint">ไม่ตอบภายในเวลาที่กำหนด = ปฏิเสธอัตโนมัติ</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-llm">
+    <h2 id="h-llm">LLM</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ชื่อ</th><th>สถานะ</th><th>TTFT p50</th><th><span class="sr-only">การกระทำ</span></th></tr></thead>
+        <tbody id="llm-rows"><tr><td colspan="4" class="muted">—</td></tr></tbody>
+      </table>
+    </div>
+    <div class="row"><button type="button" id="btn-llm-rollback">ย้อนกลับ (rollback)</button><span class="muted" id="llm-active"></span></div>
+    <div class="row"><span class="muted">prompt cache (5 เทิร์นล่าสุด):</span> <span class="badge" id="llm-cache" title="cache_n / (cache_n + prompt_n)">—</span></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-voice">
+    <h2 id="h-voice">เสียงพูดและเครื่องมือ</h2>
+    <div class="row"><span class="muted">TTS ปัจจุบัน:</span> <span id="tts-current" class="mono">—</span></div>
+    <div class="row">
+      <label for="tts-identity" class="sr-only">identity ใหม่</label>
+      <input id="tts-identity" class="grow" placeholder="identity เช่น premwadee" autocomplete="off">
+      <button type="button" id="btn-tts">เปลี่ยนเสียง</button>
+    </div>
+    <div class="row">
+      <label for="tools-mode" class="muted">เครื่องมือ (tools)</label>
+      <select id="tools-mode">
+        <option value="live">live — ทำงานจริง</option>
+        <option value="dry_run">dry_run — จำลอง</option>
+        <option value="off">off — ปิด</option>
+      </select>
+      <span class="muted" id="tools-resume"></span>
+    </div>
+    <div class="row" id="tool-list" role="group" aria-label="เปิด/ปิดเครื่องมือทีละตัว"></div>
+    <div class="row"><span class="muted">โหมดเข้มงวด (strict):</span> <span id="strict-state">—</span>
+      <button type="button" id="btn-strict-on">เปิด</button><button type="button" id="btn-strict-off">ปิด</button></div>
+    <div class="row"><button type="button" id="btn-filter-reload">โหลดรายการกรองใหม่</button></div>
+  </section>
+
+  <section class="card wide" aria-labelledby="h-lat">
+    <h2 id="h-lat">Latency — 20 เทิร์นล่าสุด</h2>
+    <div class="wf-legend" id="wf-legend"></div>
+    <div id="wf-rows"><p class="muted">ยังไม่มีเทิร์น</p></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-chat">
+    <h2 id="h-chat">แชท</h2>
+    <div id="window-box">
+      <p class="muted" style="margin:0 0 4px">หน้าต่างแชท (คะแนนการเลือก) <span id="window-pending"></span></p>
+      <div class="scroll" style="max-height:180px">
+        <table><tbody id="window-rows"><tr><td class="muted">ว่าง</td></tr></tbody></table>
+      </div>
+    </div>
+    <p class="muted" style="margin:10px 0 4px">ข้อความล่าสุด</p>
+    <ul class="feed scroll" id="chat-feed" aria-live="off"></ul>
+  </section>
+
+  <section class="card" aria-labelledby="h-mod">
+    <h2 id="h-mod">การกรอง (moderation)</h2>
+    <ul class="feed scroll" id="mod-feed"><li class="muted">ยังไม่มีการกรอง</li></ul>
+  </section>
+
+  <section class="card wide" aria-labelledby="h-mem">
+    <h2 id="h-mem">ความจำ</h2>
+    <div class="row">
+      <label for="mem-filter" class="muted">แสดง</label>
+      <select id="mem-filter">
+        <option value="">ทั้งหมด (ยกเว้นที่ลบ)</option>
+        <option value="quarantined">รออนุมัติ</option>
+        <option value="active">ใช้งาน</option>
+        <option value="deleted">ลบแล้ว</option>
+      </select>
+      <button type="button" id="btn-mem-refresh">รีเฟรช</button>
+      <span class="badge" id="mem-pending" data-tone="warn" hidden></span>
+    </div>
+    <div class="scroll" style="max-height:420px;margin-top:8px">
+      <table>
+        <thead><tr><th>#</th><th>ชนิด</th><th>ข้อความ</th><th>สถานะ</th><th><span class="sr-only">การกระทำ</span></th></tr></thead>
+        <tbody id="mem-rows"><tr><td colspan="5" class="muted">—</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-log">
+    <h2 id="h-log">บันทึกการสั่งงาน</h2>
+    <ul class="feed scroll" id="op-log"></ul>
+  </section>
+</main>
+
+<dialog id="token-dialog" aria-labelledby="token-title">
+  <form method="dialog" id="token-form">
+    <h2 id="token-title">ใส่โทเคนของแผงควบคุม</h2>
+    <p class="muted">ดูได้จากหน้าต่าง launcher หรือค่า "panel" ในไฟล์ data/state/tokens.json</p>
+    <label for="token-input" class="sr-only">โทเคน</label>
+    <input id="token-input" type="password" autocomplete="off" style="width:100%">
+    <div class="row" style="margin-top:10px"><button type="submit" id="token-save">บันทึก</button></div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+(() => {
+  // ---------------------------------------------------------------- helpers
+  const $ = (id) => document.getElementById(id);
+  const h = (tag, props, ...kids) => {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === "text") node.textContent = String(v);
+      else if (k === "class") node.className = v;
+      else if (k === "dataset") Object.assign(node.dataset, v);
+      else if (k === "style") node.style.cssText = v;
+      else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v === true ? "" : String(v));
+    }
+    for (const kid of kids.flat()) {
+      if (kid === null || kid === undefined || kid === false) continue;
+      node.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+    }
+    return node;
+  };
+  const fmtMs = (v) => (v === null || v === undefined ? "—" : `${Math.round(v)} ms`);
+  const clock = () => new Date().toLocaleTimeString("th-TH", { hour12: false });
+  const store = {
+    get(key) { try { return sessionStorage.getItem(key); } catch (_) { return null; } },
+    set(key, value) { try { sessionStorage.setItem(key, value); } catch (_) { /* private mode */ } },
+  };
+
+  const S = {
+    token: "",
+    config: null,
+    character: null,
+    snapshot: null,
+    muted: false,
+    micMode: "open",
+    ws: null,
+    wsBackoff: 500,
+    failedPolls: 0,
+    messages: new Map(),       // chat message id -> message (for moderation actions)
+    modSince: 0,               // last moderation_log row id (ops source)
+    modSinceTs: 0,             // last record time (live source, wall-clock seconds)
+    modKeys: new Set(),        // feed items already shown
+    modTimer: null,
+    bootTimer: null,
+    bootDelay: 1000,
+    traceTimer: null,
+    traceAlarmKey: "",
+    memTimer: null,
+    pttDown: false,
+  };
+
+  // ---------------------------------------------------------------- token + api
+  function readToken() {
+    const url = new URL(location.href);
+    const hash = new URLSearchParams(url.hash.slice(1));
+    const fromUrl = url.searchParams.get("token") || hash.get("token");
+    if (fromUrl) {
+      store.set("aivtube.panel.token", fromUrl);
+      url.searchParams.delete("token");
+      history.replaceState(null, "", url.pathname + url.search);
+    }
+    return fromUrl || store.get("aivtube.panel.token") || "";
+  }
+
+  // The launcher's emergency endpoint must work while the core is wedged, even after a reload.
+  const EMERGENCY_KEY = "aivtube.panel.emergency";
+  function rememberEmergency(cfg) {
+    if (cfg && cfg.emergency_url) {
+      store.set(EMERGENCY_KEY, JSON.stringify({ emergency_url: cfg.emergency_url, emergency_token: cfg.emergency_token || "" }));
+    }
+  }
+  function emergencyConfig() {
+    if (S.config && S.config.emergency_url) return S.config;
+    try { return JSON.parse(store.get(EMERGENCY_KEY) || "null"); } catch (_) { return null; }
+  }
+
+  function askToken() {
+    const dlg = $("token-dialog");
+    if (!dlg.open && typeof dlg.showModal === "function") dlg.showModal();
+  }
+
+  $("token-form").addEventListener("submit", () => {
+    const value = $("token-input").value.trim();
+    if (!value) return;
+    S.token = value;
+    store.set("aivtube.panel.token", value);
+    boot();
+  });
+
+  async function api(path, { method = "GET", body, timeoutMs = 4000, signal } = {}) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    if (signal) signal.addEventListener("abort", () => ctrl.abort());
+    try {
+      const headers = { "X-Aivtube-Token": S.token };
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      const resp = await fetch(path, {
+        method, headers, cache: "no-store", signal: ctrl.signal,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      let data = null;
+      try { data = await resp.json(); } catch (_) { data = null; }
+      if (resp.status === 401) askToken();
+      return { status: resp.status, ok: resp.ok, data: data || {} };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function toast(text, tone = "ok") {
+    const box = $("toast");
+    const item = h("div", { dataset: { tone }, text });
+    box.prepend(item);
+    while (box.children.length > 4) box.lastChild.remove();
+    setTimeout(() => item.remove(), tone === "ok" ? 2500 : 6000);
+  }
+
+  function alarm(text, level = "error", { hardKill = false } = {}) {
+    $("alarm").hidden = false;
+    $("alarm").dataset.level = level;
+    $("alarm-text").textContent = `[${clock()}] ${text}`;
+    $("alarm-hardkill").hidden = !hardKill;
+  }
+  $("alarm-close").addEventListener("click", () => { $("alarm").hidden = true; });
+  $("alarm-hardkill").addEventListener("click", () => hardKill("ผู้ควบคุมกดจากแถบแจ้งเตือน"));
+
+  async function cmd(kind, args = {}, { character = null, quiet = false, timeoutMs = 5000 } = {}) {
+    try {
+      const r = await api("/api/cmd", { method: "POST", body: { kind, args, character }, timeoutMs });
+      if (!r.ok) toast(`${kind}: ${r.data.detail || r.data.error || r.status}`, "bad");
+      else if (!quiet) toast(`${kind} ✓ ${r.data.detail || ""} (${fmtMs(r.data.latency_ms)})`);
+      if (r.ok) schedulePoll(150);
+      return r;
+    } catch (err) {
+      toast(`${kind}: core ไม่ตอบ (${err.name})`, "bad");
+      return { ok: false, status: 0, data: {} };
+    }
+  }
+
+  // ---------------------------------------------------------------- kill ladder
+  async function hardKill(reason) {
+    const cfg = emergencyConfig();
+    if (!cfg || !cfg.emergency_url) {
+      alarm("HARD KILL ใช้ไม่ได้: ไม่รู้ที่อยู่ launcher — กด K ที่หน้าต่าง launcher หรือปิดเสียงใน OBS");
+      return;
+    }
+    const url = `${cfg.emergency_url}/hardkill?token=${encodeURIComponent(cfg.emergency_token || "")}`;
+    try {
+      // A "simple" no-cors POST: no preflight, so it works even though the launcher is another origin.
+      await fetch(url, { method: "POST", mode: "no-cors", cache: "no-store", keepalive: true });
+      alarm(`ส่ง HARD KILL แล้ว (${reason}) — เสียงถูกตัดจนกว่าจะ REARM ที่ launcher`, "error");
+    } catch (_) {
+      alarm("HARD KILL ล้มเหลว! กด K ที่หน้าต่าง launcher หรือปิดเสียง Desktop Audio ใน OBS");
+    }
+  }
+
+  async function freeze() {
+    const btn = $("btn-freeze");
+    btn.disabled = true;
+    let answered = false;
+    let killed = false;
+    const fallback = setTimeout(() => {
+      if (!answered) { killed = true; hardKill("core ไม่ตอบ FREEZE ภายใน 300 ms"); }
+    }, 300);
+    try {
+      const r = await api("/api/cmd", { method: "POST", body: { kind: "freeze" }, timeoutMs: 5000 });
+      answered = true;
+      if (r.ok) toast(`FREEZE ✓ (${fmtMs(r.data.latency_ms)})`);
+      else alarm(`FREEZE ไม่สมบูรณ์: ${r.data.detail || r.data.error || r.status}`, "error", { hardKill: true });
+      schedulePoll(100);
+    } catch (_) {
+      answered = true;
+      if (!killed) { killed = true; hardKill("core ไม่ตอบ FREEZE"); }
+    } finally {
+      clearTimeout(fallback);
+      btn.disabled = false;
+    }
+  }
+
+  let armTimer = null;
+  $("btn-hardkill").addEventListener("click", () => {
+    const btn = $("btn-hardkill");
+    if (btn.dataset.armed === "true") {
+      clearTimeout(armTimer);
+      btn.dataset.armed = "false";
+      btn.textContent = "HARD KILL";
+      hardKill("ผู้ควบคุมกดปุ่ม");
+      return;
+    }
+    btn.dataset.armed = "true";
+    btn.textContent = "กดอีกครั้งเพื่อยืนยัน";
+    armTimer = setTimeout(() => { btn.dataset.armed = "false"; btn.textContent = "HARD KILL"; }, 3000);
+  });
+
+  const toggleMute = () => cmd(S.muted ? "unmute" : "mute");
+  $("btn-freeze").addEventListener("click", freeze);
+  $("btn-skip").addEventListener("click", () => cmd("skip"));
+  $("btn-mute").addEventListener("click", toggleMute);
+  $("btn-resume").addEventListener("click", () => cmd("resume"));
+  $("btn-golive").addEventListener("click", () => cmd("go_live"));
+  $("btn-chat-on").addEventListener("click", () => cmd("chat_intake", { on: true }));
+  $("btn-chat-off").addEventListener("click", () => cmd("chat_intake", { on: false }));
+
+  // ---------------------------------------------------------------- mic
+  for (const btn of document.querySelectorAll("#mic-modes [data-mode]")) {
+    btn.addEventListener("click", async () => {
+      const r = await api("/api/mic", { method: "POST", body: { mode: btn.dataset.mode } });
+      if (!r.ok) toast(`ไมค์: ${r.data.detail || r.data.error || r.status}`, "bad");
+      schedulePoll(100);
+    });
+  }
+  async function setPtt(active) {
+    if (S.pttDown === active) return;
+    S.pttDown = active;
+    $("ptt-hold").setAttribute("aria-pressed", String(active));
+    const r = await api("/api/mic", { method: "POST", body: { ptt: active }, timeoutMs: 2000 }).catch(() => null);
+    if (!r || !r.ok) toast("PTT ไม่สำเร็จ", "bad");
+  }
+  const ptt = $("ptt-hold");
+  ptt.addEventListener("pointerdown", (ev) => { ptt.setPointerCapture(ev.pointerId); setPtt(true); });
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    ptt.addEventListener(type, () => setPtt(false));
+  }
+  window.addEventListener("blur", () => setPtt(false));
+
+  // Keyboard shortcuts use physical keys (ev.code), so they work with the Thai layout too.
+  const typing = (t) => t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  document.addEventListener("keydown", (ev) => {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || typing(ev.target)) return;
+    if (ev.code === "KeyT") { ev.preventDefault(); setPtt(true); return; }
+    if (ev.repeat) return;
+    if (ev.code === "KeyF") { ev.preventDefault(); freeze(); }
+    else if (ev.code === "KeyS") { ev.preventDefault(); cmd("skip"); }
+    else if (ev.code === "KeyM") { ev.preventDefault(); toggleMute(); }
+  });
+  document.addEventListener("keyup", (ev) => { if (ev.code === "KeyT") setPtt(false); });
+
+  // ---------------------------------------------------------------- say / direct / services
+  async function sendText(kind, id) {
+    const box = $(id);
+    const text = box.value.trim();
+    if (!text) return;
+    const r = await cmd(kind, { text }, { character: S.character });
+    if (r.ok) box.value = "";
+  }
+  $("btn-say").addEventListener("click", () => sendText("say", "say-text"));
+  $("btn-direct").addEventListener("click", () => sendText("direct", "direct-text"));
+  for (const [id, kind] of [["say-text", "say"], ["direct-text", "direct"]]) {
+    $(id).addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); sendText(kind, id); }
+    });
+  }
+  $("btn-llm-rollback").addEventListener("click", () => cmd("llm_rollback"));
+  $("btn-tts").addEventListener("click", () => {
+    const identity = $("tts-identity").value.trim();
+    if (identity) cmd("tts_identity", { identity }, { character: S.character });
+  });
+  $("tools-mode").addEventListener("change", (ev) => cmd("tools_mode", { mode: ev.target.value }));
+  $("btn-strict-on").addEventListener("click", () => cmd("strict", { on: true }));
+  $("btn-strict-off").addEventListener("click", () => cmd("strict", { on: false }));
+  $("btn-filter-reload").addEventListener("click", () => cmd("filter_reload", {}, { timeoutMs: 15000 }));
+  $("char-select").addEventListener("change", (ev) => {
+    S.character = ev.target.value;
+    renderSnapshot();
+    loadMemory();
+    loadChatWindow();
+  });
+
+  // ---------------------------------------------------------------- snapshot rendering
+  // Lists with buttons are rebuilt only when their data changes, so a 2 s poll never swaps a
+  // button out from under the operator's pointer.
+  const rendered = new Map();
+  function changed(key, value) {
+    const json = JSON.stringify(value === undefined ? null : value);
+    if (rendered.get(key) === json) return false;
+    rendered.set(key, json);
+    return true;
+  }
+  const STATE_TH = {
+    booting: ["กำลังเริ่ม", "info"], pre_show: ["ก่อนไลฟ์", "info"], idle: ["ว่าง", "ok"],
+    deciding: ["กำลังคิด", "info"], speaking: ["กำลังพูด", "ok"], paused: ["หยุด (FREEZE)", "bad"],
+  };
+  function setStateBadge(state) {
+    const [label, tone] = STATE_TH[state] || [state || "—", ""];
+    const badge = $("state-badge");
+    badge.textContent = label;
+    badge.dataset.tone = tone;
+  }
+
+  function characterState(snap) {
+    const chars = (snap && snap.control && snap.control.characters) || {};
+    const mine = chars[S.character] || {};
+    return mine.state || (snap && snap.states && (snap.states[S.character] || snap.states[""])) || null;
+  }
+
+  function renderHealth(list) {
+    const ul = $("health-list");
+    ul.replaceChildren();
+    if (!list || !list.length) { ul.append(h("li", { class: "muted", text: "ยังไม่มีข้อมูล" })); return; }
+    for (const item of list) {
+      ul.append(h("li", { title: item.detail || item.state },
+        h("span", { class: "dot", dataset: { state: item.state } }),
+        h("span", { style: "min-width:0" },
+          h("div", { class: "name", text: item.component }),
+          h("div", { class: "detail", text: item.detail ? `${item.state} · ${item.detail}` : item.state }))));
+    }
+  }
+
+  function renderSnapshot() {
+    const snap = S.snapshot;
+    if (!snap) return;
+    const control = snap.control || {};
+    S.muted = !!control.muted;
+    S.micMode = control.mic_mode || S.micMode;
+    $("btn-mute").setAttribute("aria-pressed", String(S.muted));
+    $("btn-mute").firstChild.textContent = S.muted ? "เปิดเสียง" : "ปิดเสียง";
+    for (const btn of document.querySelectorAll("#mic-modes [data-mode]")) {
+      btn.setAttribute("aria-pressed", String(btn.dataset.mode === S.micMode));
+    }
+    setStateBadge(control.frozen ? "paused" : characterState(snap));
+    renderHealth(snap.health);
+    // LLM providers
+    const llm = control.llm || {};
+    if (changed("llm", llm.providers)) renderProviders(llm.providers || []);
+    $("llm-active").textContent = llm.active ? `ใช้อยู่: ${llm.active}` : "";
+    // TTS, tools, strict
+    const tts = (control.tts || {})[S.character];
+    $("tts-current").textContent = tts ? `${tts.identity} (${tts.backend})` : "—";
+    const tools = control.tools || {};
+    if (tools.mode && document.activeElement !== $("tools-mode")) $("tools-mode").value = tools.mode;
+    $("tools-resume").textContent = tools.resume_mode ? `(หลัง RESUME: ${tools.resume_mode})` : "";
+    if (changed("tools", tools.tools)) renderTools(tools.tools || {});
+    renderApprovals(control.approvals || []);
+    const strict = (control.strict || {})[S.character];
+    $("strict-state").textContent = strict === undefined ? "—" : strict ? "เปิด" : "ปิด";
+  }
+
+  function renderProviders(providers) {
+    const rows = $("llm-rows");
+    rows.replaceChildren();
+    for (const p of providers) {
+      const state = !p.enabled ? "ปิด" : p.healthy ? "พร้อม" : "ล่ม";
+      rows.append(h("tr", {},
+        h("td", {}, h("span", { class: "mono", text: p.name }), p.active ? h("span", { class: "tag", text: "ใช้อยู่" }) : null,
+          p.cloud ? h("span", { class: "tag", text: "cloud" }) : null),
+        h("td", {}, h("span", { class: "dot", dataset: { state: !p.enabled ? "disabled" : p.healthy ? "ok" : "down" } }), ` ${state}`,
+          p.fails ? h("span", { class: "muted", text: ` (${p.fails})` }) : null),
+        h("td", { class: "mono", text: fmtMs(p.ttft_p50_ms) }),
+        h("td", {}, p.active ? null : h("button", { type: "button", text: "ใช้ตัวนี้", onclick: () => cmd("llm_use", { name: p.name }) }))));
+    }
+    if (!rows.children.length) rows.append(h("tr", {}, h("td", { colspan: 4, class: "muted", text: "ไม่มีข้อมูล" })));
+  }
+
+  function renderTools(tools) {
+    const toolList = $("tool-list");
+    toolList.replaceChildren();
+    for (const [name, t] of Object.entries(tools)) {
+      toolList.append(h("button", { type: "button", class: "mono", "aria-pressed": String(!!t.enabled),
+        title: t.enabled ? "เปิดอยู่ — กดเพื่อปิด" : "ปิดอยู่ — กดเพื่อเปิด", text: name,
+        onclick: () => cmd("tool_enable", { name, enabled: !t.enabled }) }));
+    }
+  }
+
+  // ---------------------------------------------------------------- feeds
+  function logOp(text, tone) {
+    const ul = $("op-log");
+    ul.prepend(h("li", {}, h("span", { class: "meta", text: `${clock()} ` }), h("span", { class: tone === "bad" ? "tag bad" : "", text })));
+    while (ul.children.length > 80) ul.lastChild.remove();
+  }
+
+  function addChat(ev) {
+    const m = ev.message;
+    if (!m) return;
+    S.messages.set(m.id, m);
+    if (S.messages.size > 500) S.messages.delete(S.messages.keys().next().value);
+    const ul = $("chat-feed");
+    const support = m.kind && m.kind !== "text";
+    ul.prepend(h("li", {},
+      h("div", { class: "meta" }, `${clock()} · ${m.platform}`, support ? h("span", { class: "tag support", style: "margin-left:6px", text: `${m.kind}${m.amount ? ` ${m.amount} ${m.currency}` : ""}` }) : null),
+      h("div", {}, h("strong", { text: m.user ? m.user.name : "?" }), `: ${m.text}`)));
+    while (ul.children.length > 100) ul.lastChild.remove();
+  }
+
+  function modActions(target) {
+    const actions = h("div", { class: "actions" });
+    if (target.platform && target.userId) {
+      actions.append(h("button", { type: "button", text: "ปิดเสียงผู้ใช้ 10 นาที", onclick: async () => {
+        const r = await api("/api/moderation", { method: "POST", body: { action: "mute_user", platform: target.platform, user_id: target.userId, name: target.name || "", minutes: 10 } });
+        toast(r.ok ? `ปิดเสียง ${target.name || target.userId} แล้ว` : `ไม่สำเร็จ: ${r.data.detail || r.data.error}`, r.ok ? "ok" : "bad");
+      } }));
+    }
+    actions.append(h("button", { type: "button", text: "เพิ่มในบัญชีดำ", onclick: async () => {
+      const term = prompt("คำหรือวลีที่จะบล็อก:", "");
+      if (!term || !term.trim()) return;
+      const r = await api("/api/moderation", { method: "POST", body: { action: "blocklist", term: term.trim(), category: target.category || "custom", character: S.character } });
+      toast(r.ok ? "เพิ่มในบัญชีดำแล้ว" : `ไม่สำเร็จ: ${r.data.detail || r.data.error}`, r.ok ? "ok" : "bad");
+    } }));
+    if (target.ref) {
+      actions.append(h("button", { type: "button", text: "กรองผิด (false positive)", onclick: async () => {
+        const note = prompt("หมายเหตุ (ไม่บังคับ):", "") || "";
+        const r = await api("/api/moderation", { method: "POST", body: { action: "false_positive", ref: target.ref, note } });
+        toast(r.ok ? "บันทึกแล้ว" : `ไม่สำเร็จ: ${r.data.detail || r.data.error}`, r.ok ? "ok" : "bad");
+      } }));
+    }
+    return actions;
+  }
+
+  function addModeration(item) {
+    const ul = $("mod-feed");
+    if (ul.firstChild && ul.firstChild.classList && ul.firstChild.classList.contains("muted")) ul.replaceChildren();
+    ul.prepend(h("li", {},
+      h("div", { class: "meta" }, `${clock()} `, h("span", { class: "tag bad", text: item.title }), item.meta || ""),
+      item.text ? h("div", { text: item.text }) : null,
+      modActions(item)));
+    while (ul.children.length > 100) ul.lastChild.remove();
+  }
+
+  const VERDICT_TH = { block: "บล็อก", drop: "ทิ้ง", review: "ตรวจสอบ", mask: "ปิดบัง", replace: "แทนที่" };
+  const DIRECTION_TH = { in: "ขาเข้า", out: "ขาออก", name: "ชื่อผู้ใช้", tool: "เครื่องมือ", memory: "ความจำ", game: "เกม" };
+  // Chat-window housekeeping drops, not moderation (chat.window reasons).
+  const DROP_NOISE = new Set(["duplicate", "rate_limited", "shared_chat", "system", "empty", "command", "too_long"]);
+
+  // The feed comes from /api/moderation (the gate's audit or ops.db moderation_log): it has the
+  // verdict (REVIEW too), masked text and the chatter to mute. Filtered events only trigger a poll.
+  async function pollModeration() {
+    if (!S.config || !S.config.moderation_log) return;
+    const q = new URLSearchParams({ since_ts: String(Math.max(0, S.modSinceTs - 0.001)), since: String(S.modSince), limit: "100" });
+    const r = await api(`/api/moderation?${q}`).catch(() => null);
+    if (!r || !r.ok) return;
+    for (const it of r.data.items || []) {
+      if (typeof it.ts === "number") S.modSinceTs = Math.max(S.modSinceTs, it.ts);
+      if (typeof it.id === "number") S.modSince = Math.max(S.modSince, it.id);
+      if (S.modKeys.has(it.key)) continue;
+      S.modKeys.add(it.key);
+      if (S.modKeys.size > 1000) S.modKeys.delete(S.modKeys.values().next().value);
+      addModeration({
+        title: `${VERDICT_TH[it.verdict] || it.verdict || "?"} · ${it.category || "?"}`,
+        meta: ` ${DIRECTION_TH[it.direction] || it.direction || ""} · ${it.tier || ""}${it.rule ? ` · ${it.rule}` : ""}${it.character ? ` · ${it.character}` : ""}`,
+        text: `${it.user_id ? `${it.platform}/${it.user_id}: ` : ""}${it.text || ""}`,
+        ref: it.ref, category: it.category, platform: it.platform, userId: it.user_id, name: it.user_id,
+      });
+    }
+  }
+  function scheduleModeration(ms = 300) {
+    clearTimeout(S.modTimer);
+    S.modTimer = setTimeout(pollModeration, ms);
+  }
+
+  function onFiltered(ev) {
+    if (S.config && S.config.moderation_log) { scheduleModeration(); return; }
+    addModeration({
+      title: `${DIRECTION_TH[ev.direction] || ev.direction} · ${ev.category || "?"}`,
+      meta: ` ${ev.tier}${ev.rule ? ` · ${ev.rule}` : ""}`,
+      ref: ev.ref, category: ev.category,
+    });
+  }
+
+  function onChatDropped(ev) {
+    if (DROP_NOISE.has(ev.reason)) return;
+    const msg = S.messages.get(ev.message_id);
+    addModeration({
+      title: `ทิ้งแชท · ${ev.reason}`, text: msg ? `${msg.user.name}: ${msg.text}` : ev.message_id,
+      platform: msg && msg.platform, userId: msg && msg.user.id, name: msg && msg.user.name,
+    });
+  }
+
+  // ---------------------------------------------------------------- tool approvals
+  async function answerApproval(id, approved) {
+    await cmd("approve", { request: id, approved });
+    schedulePoll(50);
+  }
+  const approvalAges = new Map();  // request id -> its age label
+  function renderApprovals(list) {
+    $("approvals-card").hidden = !list.length;
+    const ageText = (a) => ` · ${a.character} · รอ ${Math.round(a.age_s || 0)} วินาที`;
+    if (!changed("approvals", list.map((a) => a.id))) {
+      for (const a of list) { const el = approvalAges.get(a.id); if (el) el.textContent = ageText(a); }
+      return;
+    }
+    const ul = $("approval-list");
+    ul.replaceChildren();
+    approvalAges.clear();
+    for (const a of list) {
+      const age = h("span", { class: "meta", text: ageText(a) });
+      approvalAges.set(a.id, age);
+      ul.append(h("li", {},
+        h("div", {}, h("strong", { class: "mono", text: a.tool }), age),
+        h("div", { class: "approval-args", text: JSON.stringify(a.args || {}, null, 1) }),
+        h("div", { class: "actions" },
+          h("button", { type: "button", class: "go", text: "อนุมัติ", onclick: () => answerApproval(a.id, true) }),
+          h("button", { type: "button", class: "danger", text: "ปฏิเสธ", onclick: () => answerApproval(a.id, false) }))));
+    }
+  }
+
+  // ---------------------------------------------------------------- chat window
+  async function loadChatWindow() {
+    if (!S.character) return;
+    const r = await api(`/api/chat?character=${encodeURIComponent(S.character)}`).catch(() => null);
+    if (!r) return;
+    $("window-box").hidden = r.status === 404;
+    if (!r.ok) return;
+    $("window-pending").textContent = `(${r.data.pending}${r.data.has_mention ? ", มีคนเรียกชื่อ" : ""})`;
+    const body = $("window-rows");
+    body.replaceChildren();
+    for (const row of r.data.window || []) {
+      const m = row.message;
+      body.append(h("tr", {},
+        h("td", { class: "score", text: row.score.toFixed(2) }),
+        h("td", {}, h("strong", { text: m.user.name })),
+        h("td", { text: m.text })));
+    }
+    if (!body.children.length) body.append(h("tr", {}, h("td", { class: "muted", text: "ว่าง" })));
+  }
+
+  // ---------------------------------------------------------------- latency waterfall
+  const STAGES = ["stimulus_in", "vad_end", "stt_final", "decision_start", "prompt_built", "llm_first_token",
+    "first_chunk", "filter_done", "tts_first_audio", "first_audible", "last_audible", "done"];
+  const STAGE_COLORS = ["#6b7280", "#8b5cf6", "#a78bfa", "#3b82f6", "#60a5fa", "#06b6d4", "#14b8a6",
+    "#22c55e", "#eab308", "#f97316", "#ef4444", "#9ca3af"];
+  $("wf-legend").replaceChildren(...STAGES.map((s, i) => h("span", { style: `--c:${STAGE_COLORS[i]}`, text: s })));
+
+  function badge(id, label, data) {
+    const el = $(id);
+    if (!data || data.status === "none") { el.textContent = `${label} —`; el.dataset.tone = ""; return; }
+    el.textContent = data.budget_p95_ms
+      ? `${label} p50 ${fmtMs(data.p50_ms)} / p95 ${fmtMs(data.p95_ms)}`
+      : `${label} p50 ${fmtMs(data.p50_ms)}`;
+    el.dataset.tone = data.status === "ok" ? "ok" : "warn";
+    el.title = `งบเวลา p50 ≤ ${fmtMs(data.budget_p50_ms)}${data.budget_p95_ms ? `, p95 ≤ ${fmtMs(data.budget_p95_ms)}` : ""} (n=${data.n})`;
+  }
+
+  async function loadTraces() {
+    const r = await api("/api/traces?n=20").catch(() => null);
+    if (!r || !r.ok) return;
+    const data = r.data;
+    badge("lat-voice", "เสียง", data.badges && data.badges.voice);
+    badge("lat-chat", "แชท", data.badges && data.badges.chat);
+    const cache = data.cache;
+    $("llm-cache").textContent = cache ? `${Math.round(cache.ratio * 100)}% (${cache.turns} เทิร์น)` : "—";
+    $("llm-cache").dataset.tone = cache ? (cache.ratio >= cache.min ? "ok" : "warn") : "";
+    const alarmKey = (data.alarms || []).map((a) => `${a.kind}:${a.opener || ""}`).join("|");
+    if (alarmKey && alarmKey !== S.traceAlarmKey) {
+      alarm((data.alarms || []).map((a) => a.message_th || a.message).join("\n"), "warn");
+    }
+    S.traceAlarmKey = alarmKey;
+    const box = $("wf-rows");
+    box.replaceChildren();
+    const rows = (data.rows || []).slice().reverse();
+    if (!rows.length) { box.append(h("p", { class: "muted", text: "ยังไม่มีเทิร์น" })); return; }
+    const budgets = data.badges || {};
+    let scale = 3000;
+    for (const row of rows) {
+      const stages = Object.values(row.stages_ms || {});
+      const end = Math.max(row.ttfa_ms || 0, ...stages.filter((v) => v <= 10000));
+      scale = Math.max(scale, end);
+    }
+    for (const row of rows) {
+      const bar = h("div", { class: "wf-bar", role: "img" });
+      const entries = STAGES.filter((s) => row.stages_ms && row.stages_ms[s] !== undefined)
+        .map((s) => [s, Math.max(0, row.stages_ms[s])]).sort((a, b) => a[1] - b[1]);
+      const titleParts = [];
+      let prev = 0;
+      for (const [stage, t] of entries) {
+        const i = STAGES.indexOf(stage);
+        const left = Math.min(100, (prev / scale) * 100);
+        const width = Math.max(0.4, Math.min(100 - left, ((t - prev) / scale) * 100));
+        bar.append(h("span", { style: `--c:${STAGE_COLORS[i]};left:${left}%;width:${width}%`, title: `${stage}: ${Math.round(t)} ms` }));
+        titleParts.push(`${stage} ${Math.round(t)}`);
+        prev = t;
+      }
+      const group = row.kind === "voice" ? "voice" : "chat";
+      const budget = budgets[group] && budgets[group].budget_p50_ms;
+      if (budget) bar.append(h("span", { class: "budget", style: `left:${Math.min(99.5, (budget / scale) * 100)}%` }));
+      bar.setAttribute("aria-label", titleParts.join(", "));
+      const over = budget && row.ttfa_ms !== null && row.ttfa_ms > budget;
+      const label = `${row.kind || "?"} · ${row.provider || ""}${row.fallbacks && row.fallbacks.length ? " (fallback)" : ""}`;
+      box.append(h("div", { class: "wf-row", title: `${row.turn_id} ${row.outcome || ""} ${row.tts_backend || ""} cache ${row.cache_ratio ?? "—"} opener "${row.opener}"` },
+        h("span", { class: "wf-label", text: label }), bar,
+        h("span", { class: "wf-ttfa", dataset: { over: String(!!over) }, text: fmtMs(row.ttfa_ms) })));
+    }
+  }
+  function scheduleTraces() {
+    clearTimeout(S.traceTimer);
+    S.traceTimer = setTimeout(loadTraces, 300);
+  }
+
+  // ---------------------------------------------------------------- memory editor
+  const MEM_STATUS_TH = { active: "ใช้งาน", quarantined: "รออนุมัติ", deleted: "ลบแล้ว" };
+  async function memPatch(id, body) {
+    const r = await api(`/api/memory/${id}`, { method: "PATCH", body: { ...body, character: S.character } });
+    const detail = (r.data.results || []).map((x) => x.detail).filter(Boolean).join("; ");
+    toast(r.ok ? `ความจำ #${id} ✓` : `ความจำ #${id}: ${detail || r.data.error || r.status}`, r.ok ? "ok" : "bad");
+    loadMemory();
+  }
+  async function memDelete(id) {
+    if (!confirm(`ลบความจำ #${id}?`)) return;
+    const r = await api(`/api/memory/${id}?character=${encodeURIComponent(S.character)}`, { method: "DELETE" });
+    const detail = (r.data.results || []).map((x) => x.detail).filter(Boolean).join("; ");
+    toast(r.ok ? `ลบ #${id} แล้ว` : `ลบไม่ได้: ${detail || r.data.error || r.status}`, r.ok ? "ok" : "bad");
+    loadMemory();
+  }
+  const memFields = () => new Set((S.config && S.config.memory_edit_fields) || []);
+  function memEdit(cell, item) {
+    const fields = memFields();
+    const box = h("textarea", { maxlength: 500, "aria-label": `แก้ข้อความความจำ #${item.id}` });
+    box.value = item.text;
+    const importance = fields.has("importance")
+      ? h("select", { "aria-label": `ความสำคัญของความจำ #${item.id}` },
+        ...[1, 2, 3, 4, 5].map((n) => h("option", { value: n, text: `ความสำคัญ ${n}` })))
+      : null;
+    if (importance) importance.value = String(item.importance);
+    cell.replaceChildren(box, h("div", { class: "mem-actions", style: "margin-top:4px" },
+      importance,
+      h("button", { type: "button", text: "บันทึก", onclick: () => {
+        const body = {};
+        const text = box.value.trim();
+        if (text && text !== item.text) body.text = text;
+        if (importance && Number(importance.value) !== item.importance) body.importance = Number(importance.value);
+        if (Object.keys(body).length) memPatch(item.id, body); else loadMemory();
+      } }),
+      h("button", { type: "button", text: "ยกเลิก", onclick: () => loadMemory() })));
+    box.focus();
+  }
+  async function loadMemory() {
+    if (!S.config || !S.config.memory || !S.character) return;
+    const status = $("mem-filter").value;
+    const q = new URLSearchParams({ character: S.character });
+    if (status) q.set("status", status);
+    const r = await api(`/api/memory?${q}`).catch(() => null);
+    const body = $("mem-rows");
+    if (!r || !r.ok) { body.replaceChildren(h("tr", {}, h("td", { colspan: 5, class: "muted", text: "โหลดความจำไม่ได้" }))); return; }
+    const items = (r.data.items || []).filter((m) => status || m.status !== "deleted");
+    const fields = memFields();
+    body.replaceChildren();
+    for (const m of items) {
+      const tr = h("tr", { dataset: { status: m.status } });
+      const textCell = h("div", { class: "mem-text", text: m.text });
+      const actions = h("div", { class: "mem-actions" });
+      if (m.status === "quarantined") {
+        actions.append(h("button", { type: "button", text: "อนุมัติ", onclick: () => memPatch(m.id, { status: "active" }) }),
+          h("button", { type: "button", text: "ปฏิเสธ", onclick: () => memPatch(m.id, { status: "deleted" }) }));
+      } else if (m.status === "active") {
+        actions.append(h("button", { type: "button", text: "กักกัน", onclick: () => memPatch(m.id, { status: "quarantined" }) }));
+      }
+      if (m.status !== "deleted") {
+        if (fields.has("text")) actions.append(h("button", { type: "button", text: "แก้ไข", onclick: () => memEdit(textCell, m) }));
+        if (fields.has("pinned")) {
+          actions.append(h("button", { type: "button", "aria-pressed": String(!!m.pinned), text: m.pinned ? "เลิกปักหมุด" : "ปักหมุด", onclick: () => memPatch(m.id, { pinned: !m.pinned }) }));
+        }
+        if (fields.has("locked")) {
+          actions.append(h("button", { type: "button", "aria-pressed": String(!!m.locked), text: m.locked ? "ปลดล็อก" : "ล็อก", onclick: () => memPatch(m.id, { locked: !m.locked }) }));
+        }
+        actions.append(h("button", { type: "button", text: "ลบ", disabled: m.locked, title: m.locked ? "ปลดล็อกก่อนจึงลบได้" : undefined, onclick: () => memDelete(m.id) }));
+      }
+      tr.append(
+        h("td", { class: "mono", text: m.slot ? `${m.id} · s${m.slot}` : m.id }),
+        h("td", {}, m.kind, m.subject ? h("div", { class: "muted", text: m.subject }) : null),
+        h("td", {}, textCell, h("div", { class: "muted", style: "font-size:12px", text: `${m.source}${m.origin ? ` · ${m.origin}` : ""} · ความสำคัญ ${m.importance}` })),
+        h("td", {}, MEM_STATUS_TH[m.status] || m.status, m.locked ? h("span", { class: "tag", text: "ล็อก" }) : null, m.pinned ? h("span", { class: "tag", text: "ปักหมุด" }) : null),
+        h("td", {}, actions));
+      body.append(tr);
+    }
+    if (!body.children.length) body.append(h("tr", {}, h("td", { colspan: 5, class: "muted", text: "ไม่มีรายการ" })));
+    const pending = (r.data.items || []).filter((m) => m.status === "quarantined").length;
+    $("mem-pending").hidden = !pending || status === "quarantined";
+    $("mem-pending").textContent = `รออนุมัติ ${pending}`;
+  }
+  function scheduleMemory() {
+    clearTimeout(S.memTimer);
+    S.memTimer = setTimeout(loadMemory, 400);
+  }
+  $("mem-filter").addEventListener("change", loadMemory);
+  $("btn-mem-refresh").addEventListener("click", loadMemory);
+
+  // ---------------------------------------------------------------- live events
+  function onEvent(ev) {
+    const mine = !ev.character || ev.character === S.character;
+    switch (ev.type) {
+      case "StateChanged":
+        if (mine) { setStateBadge(ev.new); if (S.snapshot) S.snapshot.states[ev.character || ""] = ev.new; }
+        break;
+      case "HealthChanged": {
+        if (!S.snapshot) break;
+        const list = (S.snapshot.health || []).filter((x) => x.component !== ev.health.component);
+        list.push(ev.health);
+        list.sort((a, b) => a.component.localeCompare(b.component));
+        S.snapshot.health = list;
+        renderHealth(list);
+        if (ev.health.state === "failed" || ev.health.state === "down") alarm(`${ev.health.component}: ${ev.health.state} ${ev.health.detail || ""}`, "warn");
+        break;
+      }
+      case "Alert":
+        alarm(ev.message, ev.level === "error" ? "error" : ev.level === "warn" ? "warn" : "info");
+        logOp(`แจ้งเตือน: ${ev.message}`, ev.level === "error" ? "bad" : "");
+        schedulePoll(100);  // e.g. a tool approval request, auto-strict
+        break;
+      case "ChatReceived": case "SupportReceived": addChat(ev); break;
+      case "Filtered": onFiltered(ev); break;
+      case "ChatDropped": onChatDropped(ev); break;
+      case "OperatorAction": logOp(`${ev.kind} ${ev.ok ? "✓" : "✗"} ${fmtMs(ev.latency_ms)}`, ev.ok ? "" : "bad"); break;
+      case "TurnTraceReady": scheduleTraces(); break;
+      case "ProviderSwitched": logOp(`${ev.kind}: ${ev.old} → ${ev.new} (${ev.reason})`); schedulePoll(100); break;
+      case "MemoryWritten": if (mine) scheduleMemory(); break;
+      case "ToolRejected": logOp(`เครื่องมือ ${ev.tool} ถูกปฏิเสธ: ${ev.reason}`, "bad"); schedulePoll(200); break;
+      case "ToolExecuted": logOp(`เครื่องมือ ${ev.tool} ${ev.ok ? "✓" : "✗"}${ev.dry_run ? " (dry run)" : ""}`); schedulePoll(200); break;
+      case "SegmentStarted": if (mine) $("now-caption").textContent = `พูด: ${ev.caption}`; break;
+      case "UtteranceDone": if (mine) $("now-caption").textContent = ev.filtered ? "Filtered." : ""; break;
+      case "DecisionAborted": if (mine) logOp(`ยกเลิกการตัดสินใจ: ${ev.reason}`); break;
+      default: break;
+    }
+  }
+
+  function setConn(ok) {
+    const badge = $("conn-badge");
+    badge.dataset.tone = ok ? "ok" : "bad";
+    badge.textContent = ok ? "เชื่อมต่อแล้ว" : "ไม่ได้เชื่อมต่อ";
+  }
+
+  function connectWs() {
+    if (S.ws) { try { S.ws.close(); } catch (_) { /* already closed */ } }
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(S.token)}`);
+    S.ws = ws;
+    ws.addEventListener("open", () => { S.wsBackoff = 500; setConn(true); });
+    ws.addEventListener("message", (msg) => {
+      let frame;
+      try { frame = JSON.parse(msg.data); } catch (_) { return; }
+      if (frame.kind === "events") {
+        if (frame.dropped) logOp(`ข้ามเหตุการณ์ ${frame.dropped} รายการ (แผงตามไม่ทัน)`, "bad");
+        for (const ev of frame.events || []) {
+          try { onEvent(ev); } catch (err) { console.error("event", ev.type, err); }
+        }
+      }
+    });
+    ws.addEventListener("close", () => {
+      if (S.ws !== ws) return;
+      setConn(false);
+      setTimeout(connectWs, S.wsBackoff);
+      S.wsBackoff = Math.min(S.wsBackoff * 2, 10000);
+    });
+  }
+
+  // ---------------------------------------------------------------- polling
+  let pollTimer = null;
+  function schedulePoll(ms) { clearTimeout(pollTimer); pollTimer = setTimeout(poll, ms); }
+  async function poll() {
+    try {
+      const r = await api("/api/state", { timeoutMs: 2500 });
+      if (r.ok) {
+        S.failedPolls = 0;
+        S.snapshot = r.data;
+        if (!S.snapshot.states) S.snapshot.states = {};
+        renderSnapshot();
+      }
+    } catch (_) {
+      S.failedPolls += 1;
+      if (S.failedPolls === 2) alarm("core ไม่ตอบสนอง — ถ้าเธอพูดสิ่งที่ไม่ควร ให้กด HARD KILL", "error", { hardKill: true });
+      setConn(false);
+    }
+    schedulePoll(2000);
+  }
+
+  // ---------------------------------------------------------------- boot
+  let booted = false;
+  async function boot() {
+    clearTimeout(S.bootTimer);
+    if (!S.token) { askToken(); return; }
+    const r = await api("/api/config").catch(() => null);
+    if (!r || !r.ok) {
+      if (r && r.status === 401) return;  // the token dialog is open; saving it boots again
+      alarm("ติดต่อ core ไม่ได้ — กำลังลองใหม่ (ถ้าเธอพูดสิ่งที่ไม่ควร ให้กด HARD KILL)", "error", { hardKill: !!emergencyConfig() });
+      S.bootTimer = setTimeout(boot, S.bootDelay);
+      S.bootDelay = Math.min(S.bootDelay * 2, 10000);
+      return;
+    }
+    S.bootDelay = 1000;
+    S.config = r.data;
+    rememberEmergency(S.config);
+    const chars = S.config.characters || [];
+    S.character = S.character || S.config.default_character || chars[0] || null;
+    const select = $("char-select");
+    select.replaceChildren(...chars.map((c) => h("option", { value: c, text: c })));
+    if (S.character) select.value = S.character;
+    $("char-picker").hidden = chars.length < 2;
+    $("char-title").textContent = S.character || "AI VTuber";
+    const snap = await api("/api/state").catch(() => null);
+    if (snap && snap.ok) {
+      S.snapshot = snap.data;
+      if (!S.snapshot.states) S.snapshot.states = {};
+      renderSnapshot();
+      const recent = snap.data.recent || {};
+      for (const ev of recent.chat || []) addChat(ev);
+      for (const ev of recent.moderation || []) onEvent(ev);
+    }
+    connectWs();
+    loadTraces();
+    loadMemory();
+    loadChatWindow();
+    pollModeration();
+    if (!booted) {
+      booted = true;
+      schedulePoll(2000);
+      setInterval(loadChatWindow, 2000);
+      setInterval(loadTraces, 10000);
+      setInterval(pollModeration, 5000);
+    }
+  }
+
+  S.token = readToken();
+  boot();
+})();
+</script>
+</body>
+</html>
