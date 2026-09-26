@@ -190,6 +190,66 @@ if TYPE_CHECKING:
     def _live_avatar_driver(x: LiveAvatarDriver) -> avatar.AvatarDriver:
         return x
 
+    # voice front-end (WP1)
+    from aivtube.voice.aec import NullAEC, WebRtcAEC
+    from aivtube.voice.audio_io import MicCapture, StreamingPlayer
+    from aivtube.voice.endpointer import SileroEndpointer
+    from aivtube.voice.vad import EnergyVAD, SherpaSileroVAD, SileroOrtVAD
+
+    def _streaming_player(x: StreamingPlayer) -> voice.AudioOut:
+        return x
+
+    def _mic_capture(x: MicCapture) -> voice.AudioIn:
+        return x
+
+    def _webrtc_aec(x: WebRtcAEC) -> voice.EchoCanceller:
+        return x
+
+    def _null_aec(x: NullAEC) -> voice.EchoCanceller:
+        return x
+
+    def _silero_ort_vad(x: SileroOrtVAD) -> voice.VoiceActivityDetector:
+        return x
+
+    def _sherpa_silero_vad(x: SherpaSileroVAD) -> voice.VoiceActivityDetector:
+        return x
+
+    def _energy_vad(x: EnergyVAD) -> voice.VoiceActivityDetector:
+        return x
+
+    def _silero_endpointer(x: SileroEndpointer) -> voice.Endpointer:
+        return x
+
+    # voice speech (WP2/WP3: STT, TTS)
+    from aivtube.voice.stt import (
+        NamePostProcessor,
+        PyThaiAsrRecognizer,
+        SherpaTyphoonRT,
+        TyphoonApiRecognizer,
+    )
+    from aivtube.voice.tts import AzureTTSBackend, DiskPhraseCache, EdgeTTSBackend
+
+    def _sherpa_typhoon_rt(x: SherpaTyphoonRT) -> voice.SpeechRecognizer:
+        return x
+
+    def _pythaiasr_recognizer(x: PyThaiAsrRecognizer) -> voice.SpeechRecognizer:
+        return x
+
+    def _typhoon_api_recognizer(x: TyphoonApiRecognizer) -> voice.SpeechRecognizer:
+        return x
+
+    def _name_post_processor(x: NamePostProcessor) -> voice.TranscriptPostProcessor:
+        return x
+
+    def _edge_tts_backend(x: EdgeTTSBackend) -> voice.TTSBackend:
+        return x
+
+    def _azure_tts_backend(x: AzureTTSBackend) -> voice.TTSBackend:
+        return x
+
+    def _disk_phrase_cache(x: DiskPhraseCache) -> voice.PhraseCache:
+        return x
+
     # memory + tools (WP memory)
     from aivtube.memory import SqliteMemory
     from aivtube.tools import ForgetTool, PolicyToolRegistry, RememberTool
