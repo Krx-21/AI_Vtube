@@ -145,3 +145,27 @@ if TYPE_CHECKING:
 
     def _game_brain(x: F.FakeGameBrain) -> games.GameBrain:
         return x
+
+    # chat (WP10)
+    from aivtube.chat import ScoredChatWindow, TwitchAnonIrc, YouTubeListPoller
+
+    def _twitch_anon_irc(x: TwitchAnonIrc) -> chat.ChatSource:
+        return x
+
+    def _youtube_list_poller(x: YouTubeListPoller) -> chat.ChatSource:
+        return x
+
+    def _scored_chat_window(x: ScoredChatWindow) -> chat.ChatWindow:
+        return x
+
+    # avatar (WP11)
+    from aivtube.avatar import LiveAvatarDriver, NullSink, VTSSink
+
+    def _vts_sink(x: VTSSink) -> avatar.AvatarSink:
+        return x
+
+    def _null_sink(x: NullSink) -> avatar.AvatarSink:
+        return x
+
+    def _live_avatar_driver(x: LiveAvatarDriver) -> avatar.AvatarDriver:
+        return x
