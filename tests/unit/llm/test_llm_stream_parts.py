@@ -339,3 +339,39 @@ def test_history_arguments_are_always_valid_json() -> None:
     whole = '{"text": "แมวชื่อส้ม", "importance": 3}'
     for cut in range(len(whole) + 1):
         assert isinstance(json.loads(history_arguments(whole[:cut])), dict), whole[:cut]
+
+
+def _timeout_from(cause: BaseException) -> BaseException:
+    import httpx2
+    import openai
+
+    try:
+        try:
+            raise cause
+        except BaseException as inner:
+            raise openai.APITimeoutError(
+                request=httpx2.Request("POST", "http://127.0.0.1:1/v1/chat/completions")
+            ) from inner
+    except openai.APITimeoutError as exc:
+        return exc
+
+
+def test_connect_timeout_maps_to_connect_failure() -> None:
+    import httpx2
+
+    from aivtube.llm.openai_stream import map_error
+
+    exc = _timeout_from(httpx2.ConnectTimeout("connect timed out"))
+    err = map_error(exc, provider="p", emitted=False, phase="connect")
+    assert err.reason == "connect" and err.emitted is False
+
+
+def test_read_timeout_stays_a_timeout() -> None:
+    import httpx2
+
+    from aivtube.llm.openai_stream import map_error
+
+    exc = _timeout_from(httpx2.ReadTimeout("read timed out"))
+    assert map_error(exc, provider="p", emitted=False, phase="connect").reason == "timeout"
+    exc = _timeout_from(httpx2.ConnectTimeout("x"))
+    assert map_error(exc, provider="p", emitted=True, phase="stream").reason == "timeout"

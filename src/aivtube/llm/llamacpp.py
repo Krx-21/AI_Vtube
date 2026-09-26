@@ -436,9 +436,14 @@ class LlamaServerManager(_AdminManager):
                 return await self._accept(spec, admin)
         if self._alive(spec.name):
             age = self._clock.now() - self._spawned_at.get(spec.name, self._clock.now())
-            if state == "loading" and age < self._load_timeout_s:
+            if age < self._load_timeout_s:
+                # Loading (503) or still starting (port not bound yet: on Windows a refused
+                # loopback connect itself takes ~2 s). Either way it is young, so let it finish.
                 log.warning(
-                    "llama server %s still loading after %.1f s; it keeps loading", spec.name, age
+                    "llama server %s not ready after %.1f s (%s); it keeps loading",
+                    spec.name,
+                    age,
+                    state,
                 )
                 return False
             log.error("llama server %s did not become healthy; stopping it", spec.name)

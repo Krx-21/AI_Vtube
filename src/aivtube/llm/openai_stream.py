@@ -33,6 +33,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
+import httpx2
 import json_repair
 import openai
 
@@ -444,7 +445,13 @@ def map_error(
             return exc
         reason, status, detail = exc.reason, exc.status, str(exc)
     elif isinstance(exc, openai.APITimeoutError):
-        reason, detail = "timeout", "request timed out"
+        cause = exc.__cause__ or exc.__context__
+        if phase == "connect" and isinstance(cause, httpx2.ConnectTimeout):
+            # The TCP connect itself timed out: the server is unreachable, not slow. (On
+            # Windows a refused loopback connect retries SYN for ~2 s and surfaces this way.)
+            reason, detail = "connect", "connect timed out"
+        else:
+            reason, detail = "timeout", "request timed out"
     elif isinstance(exc, openai.APIConnectionError):
         reason = "connect" if phase == "connect" else "stream_error"
         cause = exc.__cause__ or exc.__context__
