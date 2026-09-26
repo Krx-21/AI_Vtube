@@ -239,14 +239,14 @@ class BrainRig:
 
 async def run_real(clock: Any, pred: Any, within: float = 20.0, step: float = 0.02) -> None:
     """Like ``FakeClock.run_until`` but yields real time before every step, so a store working
-    on a thread (SqliteMemory, OpsDb) finishes before fake deadlines expire (a 5 s fake
-    deadline leaves such a thread about half a real second)."""
+    on a thread (SqliteMemory, OpsDb) finishes before fake deadlines expire. Fake time runs at
+    most 4x real time: a 10 s fake deadline leaves such a thread at least 2.5 real seconds,
+    which a loaded CI runner needs."""
     import asyncio
 
     end = clock.now() + within
     while not pred():
         if clock.now() >= end:
             raise TimeoutError(f"condition not met within {within} fake seconds")
-        for _ in range(2):  # let worker-thread results land on the loop
-            await asyncio.sleep(0.001)
+        await asyncio.sleep(step / 4)  # let worker-thread results land on the loop
         await clock.run_for(step)
