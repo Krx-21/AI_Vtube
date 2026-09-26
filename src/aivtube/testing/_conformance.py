@@ -146,6 +146,26 @@ if TYPE_CHECKING:
     def _game_brain(x: F.FakeGameBrain) -> games.GameBrain:
         return x
 
+    # llm (WP6)
+    from aivtube.llm.llamacpp import LauncherServerManager, LlamaServerManager
+    from aivtube.llm.providers import CannedProvider, OpenAICompatProvider
+    from aivtube.llm.router import FallbackRouter
+
+    def _openai_compat_provider(x: OpenAICompatProvider) -> llm.LLMProvider:
+        return x
+
+    def _canned_provider(x: CannedProvider) -> llm.LLMProvider:
+        return x
+
+    def _fallback_router(x: FallbackRouter) -> llm.LLMRouter:
+        return x
+
+    def _llama_server_manager(x: LlamaServerManager) -> llm.LocalServerManager:
+        return x
+
+    def _launcher_server_manager(x: LauncherServerManager) -> llm.LocalServerManager:
+        return x
+
     # chat (WP10)
     from aivtube.chat import ScoredChatWindow, TwitchAnonIrc, YouTubeListPoller
 

@@ -3,3 +3,4 @@
 *.onnx binary
 *.gguf binary
 tests/fixtures/sse/*.sse -text
+*.jinja text eol=lf
