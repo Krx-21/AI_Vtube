@@ -1,0 +1,14 @@
+# config/filters/base/gambling_scam.toml: tier-0 base list, category "gambling_scam"
+# (ARCHITECTURE.md §7). Online gambling ads, scam and money-mule spam. Chat input: DROP.
+# Speech, tool, memory: BLOCK. Links themselves are masked by the PII rules.
+# Format: see README.md in this folder.
+category = "gambling_scam"
+
+token = [
+  "สล็อต", "เว็บตรง", "บาคาร่า", "เว็บพนัน", "พนันออนไลน์", "คาสิโนออนไลน์", "แทงบอล",
+  "แทงหวย", "หวยออนไลน์", "เครดิตฟรี", "ฝากถอนออโต้", "รับจ้างเปิดบัญชี", "บัญชีม้า",
+  "เงินกู้ด่วน", "กู้เงินด่วน",
+  "pg slot", "free robux", "free vbucks", "free v-bucks", "crypto giveaway",
+]
+
+substring = ["ufabet", "sbobet", "betflik", "pgslot", "slotxo", "lsm99"]

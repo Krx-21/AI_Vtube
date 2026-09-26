@@ -1,0 +1,19 @@
+# config/filters/base/injection.toml: tier-0 base list, category "injection" (ARCHITECTURE.md §7).
+# Chat-template role tokens and common prompt-injection phrases. They are STRIPPED from chat
+# input and user names (chat is always quoted data in the user role anyway); a message that
+# is nothing but these is dropped. Not applied to speech (replace.toml patches that).
+# These rules run on the display text, case-insensitively. Format: see README.md.
+category = "injection"
+
+regex = [
+  '<\|[a-z0-9_]{1,40}\|>',
+  '</?(?:s|think|tool_call|tool_response|system|user|assistant|im_start|im_end)>',
+  '\[/?(?:inst|sys)\]',
+  '<</?sys>>',
+  '<(?:start|end)_of_turn>',
+  '(?m)^[ \t]*(?:system|assistant|developer)[ \t]*[:：]',
+  '(?:ignore|disregard|forget)\s+(?:all\s+|any\s+)?(?:the\s+|your\s+)?(?:previous|prior|above|earlier|system)\s+(?:instructions?|prompts?|rules|messages?)',
+  '(?:reveal|show|print|repeat|leak)\s+(?:me\s+)?(?:your|the)\s+(?:system\s+)?(?:prompt|instructions)',
+  '(?:ลืม|เพิกเฉย|ไม่ต้องสนใจ|ละเลย)(?:คำสั่ง|กฎ|คำแนะนำ|บทบาท)(?:ทั้งหมด)?(?:ก่อนหน้า(?:นี้)?|ข้างบน|เดิม|ของระบบ)?',
+  'system\s*prompt',
+]

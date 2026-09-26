@@ -1,0 +1,13 @@
+# config/filters/base/doxx.toml: tier-0 base list, category "doxx" (ARCHITECTURE.md §7).
+# Attempts to find or spread someone's personal details. Chat input: DROP. Speech, tool,
+# memory: BLOCK. Raw phone numbers, IDs, e-mails and links are handled by the built-in PII
+# regexes (category "pii"), not here. Format: see README.md in this folder.
+category = "doxx"
+
+token = [
+  "บ้านเลขที่", "ที่อยู่บ้าน", "เลขบัตรประชาชน", "ขุดข้อมูล", "ขุดประวัติ",
+  "แฉที่อยู่", "ปล่อยที่อยู่", "ปล่อยเบอร์", "ตามไปถึงบ้าน",
+  "dox", "doxx", "doxxed", "doxing", "doxxing", "home address", "ip grabber",
+]
+
+substring = ["grabify", "social security number"]

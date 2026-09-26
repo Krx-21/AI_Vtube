@@ -1,0 +1,15 @@
+# config/filters/base/sexual.toml: tier-0 base list, category "sexual" (ARCHITECTURE.md §7).
+# Sexual terms, pornography and sexual violence. Chat input: DROP. Speech, tool, memory: BLOCK.
+# Format: see README.md in this folder. Note "porn" is a token, not a substring: Thai names
+# romanised with "Porn-" (Pornchai, Pornpimol) must pass. ขายตัว is left out: it is also
+# "ขาย|ตัวละคร" (selling characters) in game talk.
+category = "sexual"
+
+token = [
+  "เย็ด", "หี", "ควย", "แตด", "เงี่ยน", "หนังโป๊", "คลิปโป๊", "คลิปหลุด", "ข่มขืน",
+  "porn", "porno", "hentai", "nudes", "rape", "rapist", "pedo", "pedophile", "paedophile",
+]
+
+substring = [
+  "pornhub", "pornography", "xvideos", "xnxx", "onlyfans", "blowjob", "handjob", "dickpic",
+]

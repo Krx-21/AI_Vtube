@@ -189,3 +189,12 @@ if TYPE_CHECKING:
 
     def _live_avatar_driver(x: LiveAvatarDriver) -> avatar.AvatarDriver:
         return x
+
+    # safety (WP8)
+    from aivtube.safety import KeywordRegexFilter, LayeredSafetyGate
+
+    def _keyword_regex_filter(x: KeywordRegexFilter) -> safety.TextFilter:
+        return x
+
+    def _layered_safety_gate(x: LayeredSafetyGate) -> safety.SafetyGate:
+        return x
