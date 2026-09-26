@@ -1,0 +1,18 @@
+# config/filters/base/replace.toml: hard-coded speech patches (ARCHITECTURE.md §7, "Replace
+# rules"; Vedal "hard coding it out of her speech"). Applied to speech ("out") only; the
+# result is Verdict.REPLACE with the patched text. Format: see README.md in this folder.
+
+[[replace]]   # chat-template tokens leaking into speech
+match = "regex"
+text = '<\|[a-z0-9_]{1,40}\|>|</?think>'
+with = ""
+
+[[replace]]   # assistant boilerplate that breaks the persona
+match = "regex"
+text = '(?i)\bas an ai(?: language)? model,?\s*'
+with = ""
+
+[[replace]]
+match = "regex"
+text = 'ในฐานะ(?:ที่เป็น)?(?:โมเดลภาษา(?:ขนาดใหญ่)?|ปัญญาประดิษฐ์)\s*'
+with = ""

@@ -1,0 +1,24 @@
+# config/filters/base/monarchy_112.toml: tier-0 base list, category "monarchy_112"
+# (ARCHITECTURE.md §7). The Thai monarchy and lèse-majesté law (section 112). The character
+# never discusses it: chat input is DROPped (the persona deflects) and speech is BLOCKed.
+# FAIL-CLOSED: hits block even when tier-1 times out, no allow rule in any overlay can
+# loosen this category, and Thai "token" entries match as plain substrings here (so
+# "ในหลวงพระบาง" is over-blocked on purpose). Format: see README.md in this folder.
+category = "monarchy_112"
+
+token = [
+  "ในหลวง", "พระเจ้าอยู่หัว", "พระมหากษัตริย์", "สถาบันกษัตริย์", "กษัตริย์ไทย",
+  "ราชวงศ์จักรี", "ราชวงศ์ไทย", "พระราชินี", "เจ้าฟ้า", "ทรงพระเจริญ",
+  "พระบรมวงศานุวงศ์", "พระบรมราชโองการ", "วชิราลงกรณ์", "ภูมิพล", "สิริกิติ์",
+  "รัชกาลที่ 9", "รัชกาลที่ 10",
+  "thai king", "king of thailand", "thai monarchy", "thai royal family",
+  "lese majeste", "lese-majeste", "lèse-majesté", "lèse majesté",
+  "vajiralongkorn", "bhumibol", "rama x", "section 112",
+]
+
+regex = [
+  '(?:ม\s?\.|มาตรา)\s?112(?![0-9])',   # ม.112, มาตรา 112 (Thai digits are normalised)
+  'ยกเลิก\s?112(?![0-9])',
+  '#\s?112(?![0-9])',
+  '(?<![\u0e01-\u0e4e])ร\s?\.\s?(?:9|10)(?![0-9])',   # ร.9, ร.10 (not after another Thai letter)
+]

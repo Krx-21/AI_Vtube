@@ -1,0 +1,1447 @@
+[
+ {
+  "id": "contracts",
+  "path": "src/aivtube/contracts/types.py",
+  "milestone": "M0",
+  "purpose": "Shared value types used by every module. This is the foundation that all other modules depend on.",
+  "public_api": "Authoritative text in ARCHITECTURE.md §3.1.\nCONTRACTS_VERSION: str = '1.0'\nclass Priority(IntEnum): LOW=0; MEDIUM=1; HIGH=2; CRITICAL=3\nclass Rank(IntEnum): OPERATOR=0; VOICE=10; FORCE_URGENT=20; SUPPORT=30; MENTION=40; FORCE=50; CHAT=60; GAME_CONTEXT=70; CHARACTER=75; VISION=80; IDLE=90\nclass StimulusKind(StrEnum), class Platform(StrEnum), class MsgKind(StrEnum), class HealthState(StrEnum)\n@dataclass(frozen=True, slots=True) ChatUser(platform, id, name, is_broadcaster=False, is_mod=False, is_vip=False, is_sub=False, sub_months=0, is_verified=False)\nChatMessage(platform, id, user, text, ts, received, kind=MsgKind.TEXT, amount=0.0, currency='', value_usd=0.0, first_msg=False, reply_to=None, source_channel=None, raw={})\n@dataclass(frozen=True, slots=True, kw_only=True) Stimulus(id, kind, character, text, created, priority=LOW, rank=CHAT, ttl_s=30.0, source='', speaker=None, addressed=False, payload={}, trace_id='')\nHealth(component, state, detail='', since=0.0)\nVoiceSpec(identity, voice, rate='+0%', pitch='+0Hz', volume='+0%')\nSegmentKind = Literal['speech','filtered','filler','operator','canned']\nSegment(utt_id, seq, text, caption, emotion=None, last=False, kind='speech')\nTranscript(text, is_final, audio_s, latency_ms, engine)",
+  "depends_on": [],
+  "external_deps": [],
+  "acceptance_tests": [
+   "mypy --strict passes and the module imports only the stdlib",
+   "All dataclasses are frozen with slots and hashable where their fields allow",
+   "Rank ordering test: OPERATOR < VOICE < MENTION < CHAT < GAME_CONTEXT < IDLE"
+  ],
+  "implementation_notes": "Frozen at M0. Any change needs an ADR in docs/adr and a CONTRACTS_VERSION bump. Document the time rule in the module docstring: all timestamps are time.perf_counter() seconds, and wall-clock time is used only for storage."
+ },
+ {
+  "id": "events",
+  "path": "src/aivtube/contracts/events.py",
+  "milestone": "M0",
+  "purpose": "Event base class, the full event catalogue, and the JSON registry used by the panel, flight recorder and replay.",
+  "public_api": "Authoritative text in ARCHITECTURE.md §3.2.\n@dataclass(frozen=True, slots=True, kw_only=True) class Event: ts: float = 0.0; character: str | None = None; turn_id: str | None = None\nThe subclasses listed in §3.2 (UserSpeechStarted … GameActionResult), each declared with the same decorator.\nEVENT_TYPES: Mapping[str, type[Event]]\ndef event_to_json(e: Event) -> dict[str, Any]\ndef event_from_json(d: Mapping[str, Any]) -> Event",
+  "depends_on": [
+   "contracts"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Every event class round-trips through event_to_json/event_from_json",
+   "EVENT_TYPES contains every Event subclass defined in the module (checked by reflection)",
+   "Nested ChatMessage and Stimulus fields serialise correctly"
+  ],
+  "implementation_notes": "The JSON form is {'type': ClassName, ...fields}. Enums serialise as their values, and tuples come back as tuples. LipTrack is deliberately not an Event: it travels on a direct channel to the avatar driver."
+ },
+ {
+  "id": "contracts.infra",
+  "path": "src/aivtube/contracts/infra.py",
+  "milestone": "M0",
+  "purpose": "Infrastructure protocols: Clock, Component, TaskSupervisor, EventBus and Subscription.",
+  "public_api": "Authoritative text in ARCHITECTURE.md §3.3.\nclass Clock(Protocol): now() -> float; wall() -> float; async sleep(seconds: float) -> None\nclass Component(Protocol): name; async start(); async aclose(); health() -> Health\nRestartPolicy = Literal['never','on_error','always']\nclass TaskSupervisor(Protocol): spawn(name, factory, *, restart='on_error', backoff=(0.5,30.0), breaker=(6,120.0), critical=False) -> None; track(coro, *, name: str) -> asyncio.Task[Any]; async restart(name); status() -> list[Health]; async aclose(timeout=5.0)\nclass Overflow(StrEnum): DROP_OLDEST, DROP_NEWEST\nclass Subscription(Protocol): name; dropped: int; __aiter__() -> AsyncIterator[Event]; close()\nclass EventBus(Protocol): publish(event) -> None; publish_threadsafe(event) -> None; subscribe(*types, name: str, maxsize=1024, overflow=Overflow.DROP_OLDEST) -> Subscription",
+  "depends_on": [
+   "contracts",
+   "events"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "mypy --strict passes",
+   "Protocols are runtime_checkable where fakes rely on isinstance checks"
+  ],
+  "implementation_notes": "Protocol definitions only; implementations live in infra. The doc comment on TaskSupervisor.track must state that it holds a strong reference, because asyncio can garbage-collect tasks nobody references."
+ },
+ {
+  "id": "contracts.io",
+  "path": "src/aivtube/contracts/{voice,speech,avatar}.py",
+  "milestone": "M0",
+  "purpose": "Protocols for audio, VAD, endpointing, STT and TTS on the voice-worker side; SpeechOutput and VoicePolicy on the core side; AvatarSink, AvatarDriver and LipTrack.",
+  "public_api": "Authoritative text in ARCHITECTURE.md §3.4, §3.5 and §3.7.\nvoice.py: F32, I16, MarkCallback, AudioBackend, AudioOut, AudioIn, EchoCanceller, VoiceActivityDetector, EndpointerConfig, VadStart, VadPartial, VadEnd, VadEvent, Endpointer, SpeechRecognizer, TranscriptPostProcessor, AudioChunk, WordMark, TTSUnavailable, QuotaSpec, TTSBackend, PhraseCache\nspeech.py: MicMode, BargePolicy, EchoMode, StopMode, VoicePolicy, TTSConstraints, SpeechOutput (ready, constraints, begin, segment->bool, open_gate, stop, duck, mute, set_policy, set_voice_rate, play_canned)\navatar.py: AvatarState, LipTrack(utt_id, seq, t0, fps, mouth, form, final=False), AvatarSink (connected, run, set_params, set_emotion, trigger, move, health), AvatarDriver (on_lip_track, on_cut, set_state, set_emotion, run)",
+  "depends_on": [
+   "contracts",
+   "events"
+  ],
+  "external_deps": [
+   "numpy"
+  ],
+  "acceptance_tests": [
+   "mypy --strict passes",
+   "voice.py imports numpy only for typing, and no module imports sounddevice"
+  ],
+  "implementation_notes": "voice.py is used only inside the voice worker. The core talks to speech only through SpeechOutput. VadPartial marks a forced split and must never be treated as the end of a turn."
+ },
+ {
+  "id": "contracts.domain",
+  "path": "src/aivtube/contracts/{llm,chat,memory,safety,tools,control,games}.py",
+  "milestone": "M0",
+  "purpose": "Protocols for the LLM, chat, memory, safety, tools, operator control and games (the games contract is frozen at M0 but used from M4).",
+  "public_api": "Authoritative text in ARCHITECTURE.md §3.6 and §3.8–§3.13.\nllm.py: ToolSpec, SlotRole, ChatRequest, TextDelta, ToolCall, Done, LLMEvent, ProviderCaps, ProviderFailed(msg, *, emitted), LLMProvider (probe, stream, prefill), ProviderStatus, LLMRouter (stream, prefill, promote, rollback, active, status), LocalServerManager (ensure_running, stop, props, save_slot, restore_slot)\nchat.py: ChatSource, ChannelActions, ChatSelection, ChatWindow (add, select, pending, consume, recent, snapshot)\nmemory.py: MemKind, MemStatus, MemSource, MemoryItem, Turn, PrefixMemory, SlotsFull, MemoryStore\nsafety.py: Direction, Verdict, FilterContext, FilterResult, TextFilter, Classifier, SafetyGate (check_input, check_output, check_args, strict_mode, reload)\ntools.py: Risk, RateLimit, ToolPolicy, ToolResult, ToolContext, Tool, ToolRegistry\ncontrol.py: OpKind, OpCommand, OpResult, ControlSurface\ngames.py: GameAction, GameForce, GameServer, GameBrain",
+  "depends_on": [
+   "contracts",
+   "events",
+   "contracts.infra",
+   "contracts.io"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "mypy --strict passes",
+   "The import graph has no cycles (checked by a test)"
+  ],
+  "implementation_notes": "ToolContext refers to MemoryStore, SpeechOutput, AvatarSink and ChannelActions, so import them under TYPE_CHECKING to avoid runtime import cycles."
+ },
+ {
+  "id": "contracts.ipc",
+  "path": "src/aivtube/contracts/ipc.py",
+  "milestone": "M0",
+  "purpose": "The versioned message protocol between core and voice worker: envelope, codec and per-message JSON Schemas (Appendix A).",
+  "public_api": "IPC_VERSION = 1\n@dataclass(frozen=True, slots=True) Envelope(v: int, type: str, id: str, ts: float, data: Mapping[str, Any], corr: str | None = None)\nclass IpcError(Exception)\ndef encode(env: Envelope) -> str\ndef decode(raw: str | bytes) -> Envelope\nMESSAGE_SCHEMAS: Mapping[str, Mapping[str, Any]]\ndef validate(env: Envelope) -> None\nMessage type constants: HELLO, PING, PONG, HEALTH, VOICE_CONFIGURE, VOICE_POLICY, SPEAK_BEGIN, SPEAK_SEGMENT, SPEAK_GATE, SPEAK_STOP, SPEAK_DUCK, SPEAK_CANNED, VOICE_MUTE, VOICE_RATE, VAD_START, VAD_END, STT_FINAL, STT_SPECULATIVE, BARGE_CANDIDATE, BARGE_CONFIRMED, BARGE_REJECTED, SEG_STARTED, LIP_TRACK, SEG_DONE, UTT_DONE, TTS_FALLBACK, TTS_CONSTRAINTS",
+  "depends_on": [
+   "contracts"
+  ],
+  "external_deps": [
+   "jsonschema"
+  ],
+  "acceptance_tests": [
+   "Every message type has a schema, and a sample message validates against it",
+   "decode raises IpcError on malformed JSON, and an unknown type decodes without raising",
+   "Round trip: encode(decode(x)) == x"
+  ],
+  "implementation_notes": "JSON text frames only. Every ts field is sender perf_counter time. Schemas are validated in tests and when AIVTUBE_IPC_DEBUG=1."
+ },
+ {
+  "id": "config",
+  "path": "src/aivtube/config/",
+  "milestone": "M0",
+  "purpose": "Typed, layered configuration: defaults, then profile, then character, then user.toml, then env, then CLI. Also secrets, migration and user-override writing.",
+  "public_api": "class AppConfig(pydantic.BaseModel)  # sections app, ports, privacy, audio, mic, vad, barge_in, stt, llm, tts, brain, chat, memory, safety, avatar, panel, tools, games, profiles\nclass CharacterConfig(BaseModel)  # id, display_name, name_th, persona, aliases, tts_identity_chain, emotions, cached_phrases, stt_aliases, avatar, memory, safety, games, tools\nclass Secrets(pydantic_settings.BaseSettings)  # TYPHOON_API_KEY, GEMINI_API_KEY, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, YOUTUBE_API_KEY, TWITCH_CLIENT_ID as SecretStr | None\ndef load_config(root: Path, *, profile: str | None = None, cli_overrides: Mapping[str, Any] | None = None, env: Mapping[str, str] | None = None) -> AppConfig\ndef load_character(root: Path, char_id: str) -> CharacterConfig\ndef deep_merge(base: Mapping[str, Any], over: Mapping[str, Any]) -> dict[str, Any]\nclass ConfigError(Exception): path: str; message_en: str; message_th: str; hint: str\ndef migrate(root: Path, *, dry_run: bool = False) -> list[str]\ndef write_user_overrides(root: Path, updates: Mapping[str, Any]) -> Path",
+  "depends_on": [
+   "contracts"
+  ],
+  "external_deps": [
+   "pydantic>=2.13",
+   "pydantic-settings",
+   "python-dotenv",
+   "tomli-w"
+  ],
+  "acceptance_tests": [
+   "defaults.toml loads and validates for every profile",
+   "Validation rejects any port in 8001–8009, and rejects duplicate ports",
+   "azure.hedge_first_chunk=true with tier F0 fails validation; cloud providers in the chain without consent are marked disabled, not errors",
+   "An invalid device name produces a ConfigError that has a Thai message and a hint"
+  ],
+  "implementation_notes": "Read TOML with stdlib tomllib and write it with tomli-w (keeping a .bak). Profiles deep-merge over the base config. A {character} placeholder in paths is expanded per character. Env overrides use the form AIVTUBE__SECTION__KEY."
+ },
+ {
+  "id": "infra",
+  "path": "src/aivtube/infra/",
+  "milestone": "M0",
+  "purpose": "Runtime infrastructure used by the core and the workers: event bus, task supervisor, clocks and ticker, deadlines, logging, TurnTrace, flight recorder, metrics, plugin registry and loop-lag monitor.",
+  "public_api": "class AsyncEventBus(EventBus): __init__(self, clock: Clock, *, flight: FlightRecorder | None = None)\nclass SupervisedTasks(TaskSupervisor): __init__(self, clock: Clock, bus: EventBus, *, on_critical_failure: Callable[[str, BaseException], None])\nclass SystemClock(Clock)  # now=time.perf_counter, wall=time.time\nclass PrecisionTicker: __init__(self, hz: float, callback: Callable[[float], None], loop: asyncio.AbstractEventLoop); start() -> None; stop() -> None; jitter_stats() -> dict[str, float]\n@asynccontextmanager async def deadline(seconds: float, *, what: str) -> AsyncIterator[None]\nclass DeadlineExceeded(TimeoutError): what: str\ndef setup_logging(proc: str, log_dir: Path, *, secrets: Sequence[str], level: str = 'INFO') -> None\nclass LoopLagMonitor: __init__(self, interval_s=0.1, warn_s=0.25, dump_s=2.0); async run() -> None\nclass TurnTraceRecorder: begin(turn_id: str, kind: str, character: str) -> None; mark(turn_id: str, stage: str, t: float | None = None) -> None; set(turn_id: str, **fields: Any) -> None; finish(turn_id: str) -> Mapping[str, Any]\nclass FlightRecorder: __init__(self, maxlen: int = 2000); record(ev: Event) -> None; record_llm(summary: Mapping[str, Any]) -> None; dump(path: Path) -> Path\nclass MetricsRegistry: inc(name: str, n: int = 1) -> None; set(name: str, v: float) -> None; snapshot() -> dict[str, float]\nclass PluginRegistry: register(kind: str, name: str, factory: Callable[[Mapping[str, Any], Any], Any]) -> None; create(kind: str, name: str, cfg: Mapping[str, Any], services: Any) -> Any; names(kind: str) -> list[str]; load_entry_points(group: str = 'aivtube.plugins') -> None",
+  "depends_on": [
+   "contracts",
+   "events",
+   "contracts.infra"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Bus: DROP_OLDEST keeps the newest maxsize events and counts drops; publish never raises; publish_threadsafe delivers from another thread",
+   "TaskSupervisor: backoff sequence, crash-loop breaker marks FAILED, a critical task calls on_critical_failure, and track() keeps a strong reference and logs the exception",
+   "deadline raises DeadlineExceeded with its label",
+   "The logging redaction filter removes configured secrets, 'oauth:' and 'Bearer' tokens",
+   "PrecisionTicker at 60 Hz on Linux CI has p95 jitter under 5 ms (timing-marked test)"
+  ],
+  "implementation_notes": "The bus stamps ts with perf_counter when an event's ts is 0; use dataclasses.replace to set it. LoopLagMonitor calls faulthandler.dump_traceback(all_threads=True) when lag passes dump_s. setup_logging uses a QueueHandler/QueueListener writing a .log and a .jsonl, and calls faulthandler.enable(file=<proc>.fault). PrecisionTicker is a daemon thread using time.sleep, which is a high-resolution waitable timer on Windows since Python 3.11."
+ },
+ {
+  "id": "testing.fakes",
+  "path": "src/aivtube/testing/fakes/",
+  "milestone": "M0",
+  "purpose": "Test doubles for every adapter. They ship with the package so the sim, CI and other agents can use them.",
+  "public_api": "class FakeClock(Clock): advance(dt: float) -> None; async run_until_idle() -> None\nclass FakeSD(AudioBackend): add_device(name: str, hostapi: str, max_in: int, max_out: int) -> int; pump(n_blocks: int) -> list[np.ndarray]; push(x: np.ndarray) -> None; die() -> None\nclass FakeVAD(VoiceActivityDetector): __init__(self, probs: Sequence[float])\nclass FakeRecognizer(SpeechRecognizer): __init__(self, script: Mapping[str, str] | Sequence[str], delay_s: float = 0.0)\nclass FakeTTS(TTSBackend): __init__(self, *, ttfa_s: float = 0.25, fail_rate: float = 0.0, chars_per_s: float = 12.5, name: str = 'fake')\nclass FakeSpeechOutput(SpeechOutput): audible: list[tuple[float, str]]; __init__(self, bus: EventBus, clock: Clock, *, chars_per_s: float = 12.5)\nclass FakeLLM(LLMProvider): __init__(self, script: Sequence[FakeReply], *, ttft_s: float = 0.3, tok_s: float = 45.0, fail: str | None = None); requests: list[ChatRequest]\n@dataclass FakeReply(match: str, text: str, tool_calls: Sequence[ToolCall] = ())\nclass SseFixtureServer: __init__(self, host: str, port: int, script: Sequence[FakeReply]); async start() -> str; async stop()\nclass FakeVTSServer: __init__(self, port: int, *, frame_hz: float = 60.0); async start(); async stop(); received: list[dict]\nclass FakeIrcServer: __init__(self, port: int, lines: Sequence[str]); async start(); async stop()\nclass FakeChatSource(ChatSource), class FakeChannelActions(ChannelActions), class FakeLauncher(LocalServerManager)",
+  "depends_on": [
+   "contracts",
+   "events",
+   "contracts.infra",
+   "contracts.io",
+   "contracts.domain",
+   "contracts.ipc"
+  ],
+  "external_deps": [
+   "numpy",
+   "websockets",
+   "aiohttp"
+  ],
+  "acceptance_tests": [
+   "Each fake passes its Protocol's contract suite in testing.contracts",
+   "FakeSD reproduces the audio brief's 7 tested behaviours (pump/push/die, WASAPI host API listing)",
+   "FakeVTSServer answers auth and injection, and emits an event carrying the subscription's requestID"
+  ],
+  "implementation_notes": "Port FakeSD from the audio brief's test_audio_io.py and FakeVTS from the avatar brief's test_avatar.py. SseFixtureServer emits OpenAI-style SSE: fragmented llama.cpp tool arguments, Thai combining marks split across chunks, and a final timings object."
+ },
+ {
+  "id": "testing.contracts",
+  "path": "src/aivtube/testing/contracts/",
+  "milestone": "M0",
+  "purpose": "Parametrised contract suites that define what makes an implementation swappable. Each suite runs against the real implementation and its fake.",
+  "public_api": "def audio_out_suite(factory: Callable[[], AudioOut]) -> list[Callable[[], None]]\ndef speech_recognizer_suite(factory: Callable[[], SpeechRecognizer]) -> list[Callable[[], None]]\ndef tts_backend_suite(factory: Callable[[], TTSBackend]) -> list[Callable[[], Awaitable[None]]]\ndef speech_output_suite(factory) -> list[...]\ndef llm_provider_suite(factory) -> list[...]\ndef avatar_sink_suite(factory) -> list[...]\ndef chat_source_suite(factory) -> list[...]\ndef memory_store_suite(factory) -> list[...]\ndef text_filter_suite(factory) -> list[...]\ndef tool_registry_suite(factory) -> list[...]",
+  "depends_on": [
+   "contracts.io",
+   "contracts.domain",
+   "testing.fakes"
+  ],
+  "external_deps": [
+   "pytest"
+  ],
+  "acceptance_tests": [
+   "All suites pass against the fakes",
+   "Suites are importable without GPU or audio"
+  ],
+  "implementation_notes": "Examples of what the suites check: cancel() silences the next block; marks fire False on cancel; LLM aclose closes the transport; remember raises SlotsFull at capacity; the filter blocks a phrase split across chunks when given prev_tail."
+ },
+ {
+  "id": "packaging",
+  "path": "pyproject.toml, uv.lock, setup.ps1, run.bat, models/manifest.toml, .github/workflows/, tools/export_*.py",
+  "milestone": "M0",
+  "purpose": "Build, install, CI and model-export scaffolding.",
+  "public_api": "CLI entry point: aivtube = 'aivtube.cli:main'\nPlugin entry point group: aivtube.plugins (builtin = 'aivtube.plugins:register')\nWorkflows: ci.yml (matrix ubuntu 3.11/3.12 + windows 3.12), nightly.yml, models-export.yml (workflow_dispatch)",
+  "depends_on": [],
+  "external_deps": [
+   "uv"
+  ],
+  "acceptance_tests": [
+   "uv sync --frozen --extra voice --extra aec --extra dev succeeds on ubuntu and windows runners",
+   "CI runs ruff, mypy --strict on contracts/brain/ipc, and pytest -m 'not nightly and not hardware'",
+   "models-export.yml produces encoder/decoder/joiner int8 ONNX files plus tokens.txt with a CC-BY attribution README"
+  ],
+  "implementation_notes": "setup.ps1 only bootstraps uv and then runs `aivtube setup`. The manifest lists url, sha256, size, licence and required_by for each model. Commit silero_vad.onnx (MIT, 2.3 MB) under tests/fixtures for the CI tests."
+ },
+ {
+  "id": "ipc",
+  "path": "src/aivtube/ipc/",
+  "milestone": "M1",
+  "purpose": "The WebSocket link between core and voice worker: token handshake, heartbeats, a clock-offset sanity check, request/response handling and reconnects.",
+  "public_api": "class IpcServer: __init__(self, host: str, port: int, token: str, clock: Clock, bus: EventBus); async serve() -> None; peer(role: str) -> 'IpcPeer | None'; on(msg_type: str, handler: Callable[[Envelope], Awaitable[None] | None]) -> None; on_peer_lost(cb: Callable[[str, str], None]) -> None\nclass IpcPeer: role: str; connected: bool; rtt_s: float; clock_offset_s: float; async send(msg_type: str, data: Mapping[str, Any], *, corr: str | None = None) -> None; async request(msg_type: str, data: Mapping[str, Any], timeout: float = 1.0) -> Envelope\nclass IpcClient: __init__(self, url: str, token: str, role: str, clock: Clock); async run() -> None; async send(msg_type: str, data: Mapping[str, Any], *, corr: str | None = None) -> None; on(msg_type: str, handler) -> None; on_link_lost: Callable[[], None]; on_link_up: Callable[[], None]",
+  "depends_on": [
+   "contracts.ipc",
+   "contracts.infra",
+   "infra"
+  ],
+  "external_deps": [
+   "websockets>=17.1,<18"
+  ],
+  "acceptance_tests": [
+   "A wrong token or major version is rejected",
+   "3 missed heartbeats trigger on_peer_lost / on_link_lost",
+   "An offset over 2 ms logs a warning and is applied; the offset is ~0 in same-host tests",
+   "Request/response is correlated by corr id and times out"
+  ],
+  "implementation_notes": "Use websockets.asyncio.server/client with proxy=None, compression=None and max_size=4 MiB. Heartbeat at 1 Hz. The server sends to the core's handlers before events reach the bus. The client reconnects with backoff. on_link_lost in the voice worker enforces invariant I1."
+ },
+ {
+  "id": "launcher",
+  "path": "src/aivtube/launcher/",
+  "milestone": "M1",
+  "purpose": "Stdlib-only supervisor. Runs preflight, starts or adopts llama-server, supervises core and voice, holds the Job Object, serves the emergency hard-kill endpoint, handles console keys, polls GPU telemetry and keeps the PC awake.",
+  "public_api": "def main(argv: list[str] | None = None) -> int\n@dataclass ProcessSpec(name: str, argv: list[str], env: dict[str, str], cwd: Path, restart: str = 'on_error', backoff: tuple[float, float] = (0.5, 30.0), breaker: tuple[int, float] = (5, 120.0), priority: str = 'normal')\nclass Supervisor: __init__(self, specs: list[ProcessSpec], job: 'JobObject', log: logging.Logger); start() -> None; stop(graceful_timeout: float = 5.0) -> None; restart(name: str) -> None; terminate(name: str, *, hold: bool) -> None; rearm(name: str) -> None; status() -> dict[str, dict]\nclass JobObject: __init__(self) -> None; assign(pid: int) -> None; close() -> None\nclass EmergencyServer: __init__(self, host: str, port: int, token: str, supervisor: Supervisor, llama: 'LlamaServerController'); start() -> None; stop() -> None  # POST /hardkill /rearm /restart/<name> /llm/ensure/<server> /llm/stop/<server>; GET /status\nclass LlamaServerController: __init__(self, cfg: Mapping[str, Any], log: logging.Logger); build_argv() -> list[str]; adopt() -> bool; ensure(timeout_s: float) -> bool; stop() -> None; on_load_failure() -> None; health() -> str\nclass GpuMonitor(threading.Thread): latest() -> dict[str, float]\nclass ConsoleKeys(threading.Thread)  # K hard kill, F freeze, R restart, Q quit\ndef keep_awake(on: bool) -> None\ndef preflight(cfg: Mapping[str, Any]) -> list[str]",
+  "depends_on": [
+   "config"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "On Windows CI, killing the launcher kills its children (Job Object)",
+   "hardkill terminates voice and does not restart it until rearm; latency is at most 300 ms",
+   "A llama load failure in pinned mode raises n_cpu_moe by the step and persists data/state/llama_tuning.json",
+   "adopt() accepts a running server whose /props alias and model match, and rejects mismatches",
+   "Preflight detects ports in use, sha mismatches and Session 0"
+  ],
+  "implementation_notes": "Imports only the stdlib (subprocess, ctypes, threading, http.server, urllib, json) so it cannot crash on native code. Windows: CreateJobObject with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, CREATE_NEW_PROCESS_GROUP, CTRL_BREAK_EVENT and then TerminateProcess, ABOVE_NORMAL_PRIORITY_CLASS for voice, SetThreadExecutionState. On Linux, JobObject is a no-op. Tokens reach children via env AIVTUBE_BUS_TOKEN and AIVTUBE_EMERGENCY_TOKEN. Exit code 3 means restart requested. The panel falls back to /hardkill when the core does not answer within 300 ms. Heartbeat the core via GET panel /api/ping (5 s timeout), and dump and kill it if there is no answer."
+ },
+ {
+  "id": "text.normalize",
+  "path": "src/aivtube/text/{normalize,tags,thai}.py",
+  "milestone": "M1",
+  "purpose": "Pure-function Thai text utilities: TTS normalisers, speakability check, emotion-tag extraction, name matching, question detection and token estimation.",
+  "public_api": "def normalize_cloud(text: str) -> str\ndef normalize_local(text: str, lexicon: Mapping[str, str]) -> str\ndef is_speakable(text: str) -> bool\ndef strip_zero_width(text: str) -> str\ndef nfkc_casefold(text: str) -> str\ndef collapse_repeats(text: str, max_run: int = 2) -> str\ndef thai_digits_to_arabic(text: str) -> str\ndef estimate_tokens(text: str) -> int\ndef is_question(text: str) -> bool\nclass NameMatcher: __init__(self, aliases: Sequence[str]); __call__(self, text: str) -> bool\nclass EmotionTagExtractor: __init__(self, known: frozenset[str]); feed(self, delta: str) -> list[tuple[str, str | None]]; flush(self) -> list[tuple[str, str | None]]; last_emotion: str | None",
+  "depends_on": [
+   "contracts"
+  ],
+  "external_deps": [
+   "pythainlp==5.3.8"
+  ],
+  "acceptance_tests": [
+   "normalize_cloud strips emoji, markdown and URLs, turns 555+ into ฮ่าฮ่าฮ่า, and collapses ว้าวววว to ว้าว",
+   "normalize_local expands numbers with num_to_thaiword and applies the EN→Thai lexicon",
+   "A tag split across deltas ('[hap' + 'py] …') is extracted; unknown [..] tags are stripped; an emotion is emitted only when it changes",
+   "is_speakable('3.') is False"
+  ],
+  "implementation_notes": "Port from the TTS brief §5 (thai_tts_normalize.py). Estimate tokens as Thai chars/2 plus Latin chars/4. Match names with NFKC, zero-width strip and substring matching (Thai has no spaces between words)."
+ },
+ {
+  "id": "text.chunker",
+  "path": "src/aivtube/text/chunker.py",
+  "milestone": "M1",
+  "purpose": "Incremental Thai speech chunker that turns streamed LLM deltas into TTS-sized chunks.",
+  "public_api": "@dataclass(frozen=True) class ChunkerConfig: first_min_chars: int = 8; first_max_chars: int = 60; min_chars: int = 40; max_chars: int = 160; strong_min_chars: int = 20\nclass ThaiSpeechChunker: __init__(self, cfg: ChunkerConfig | None = None, *, word_tokenize: Callable[[str], list[str]] | None = None); feed(self, delta: str) -> list[str]; stall_flush(self) -> list[str]; flush(self) -> list[str]; reset(self) -> None\ndef warm_up_pythainlp() -> float",
+  "depends_on": [
+   "contracts"
+  ],
+  "external_deps": [
+   "pythainlp==5.3.8"
+  ],
+  "acceptance_tests": [
+   "Hypothesis: output is split-invariant over random delta splits and lossless apart from whitespace",
+   "A chunk never starts with a combining mark or ends with เแโใไ, and never exceeds max_chars",
+   "'100 บาท', 'เวลา 02:30', a Latin phrase and 'กันนะคะ' are never split; a 150-char unpunctuated Thai stream gives ≥3 chunks",
+   "stall_flush cuts at the last whitespace, never mid-word"
+  ],
+  "implementation_notes": "Port the TTS brief §4 ThaiSpeechChunker verbatim and add stall_flush. The ReplyPipeline rebuilds the config from TTSConstraints at the start of each utterance, e.g. min_chars=60 when Azure F0 is primary."
+ },
+ {
+  "id": "voice.audio_io",
+  "path": "src/aivtube/voice/audio_io.py",
+  "milestone": "M1",
+  "purpose": "WASAPI device resolution by name, an always-open StreamingPlayer with DAC-timed markers and a reference tap, and MicCapture.",
+  "public_api": "@dataclass(frozen=True) class DeviceInfo(index: int, name: str, hostapi: str, max_in: int, max_out: int, default_sr: float)\ndef list_devices(backend: AudioBackend | None = None) -> list[DeviceInfo]\ndef resolve_device(query: str | int | None, kind: Literal['input','output'], backend: AudioBackend | None = None, hostapis: tuple[str, ...] = ('Windows WASAPI','MME','Windows DirectSound')) -> int\ndef reinit_portaudio(backend: AudioBackend | None = None) -> None\nclass StreamingPlayer(AudioOut): __init__(self, device: str | int | None = None, *, samplerate: int = 48000, channels: int = 2, blocksize: int = 480, latency: float = 0.04, fade_ms: float = 8.0, on_level: Callable[[float], None] | None = None, on_device_lost: Callable[[], None] | None = None, mirror_device: str | None = None, backend: AudioBackend | None = None, clock: Callable[[], float] = time.perf_counter)\nclass MicCapture(AudioIn): __init__(self, device: str | int | None = None, *, samplerate: int = 48000, blocksize: int = 480, latency: float | str = 'low', backend: AudioBackend | None = None, max_queue_s: float = 2.0, clock: Callable[[], float] = time.perf_counter)",
+  "depends_on": [
+   "contracts.io"
+  ],
+  "external_deps": [
+   "sounddevice==0.5.6",
+   "soxr==1.1.0",
+   "numpy"
+  ],
+  "acceptance_tests": [
+   "FakeSD: the block after cancel() is fade then zeros, and pending marks fire False",
+   "Marks fire True at the audible time (dac - current + now), measured with perf_counter",
+   "resolve_device(None) returns the WASAPI default, never MME; name substrings resolve inside WASAPI",
+   "A device-loss callback leads to a reopen by name; a callback exception zero-fills and is counted, not raised"
+  ],
+  "implementation_notes": "Port the audio brief's audio_io.py verbatim, but with every time.monotonic() replaced by the injected clock (perf_counter). Import sounddevice lazily. Pass WasapiSettings(auto_convert=True) only to WASAPI devices; never use exclusive mode. The mirror sink (e.g. VB-CABLE) plays the same blocks but is never used as the AEC reference."
+ },
+ {
+  "id": "voice.aec",
+  "path": "src/aivtube/voice/aec.py",
+  "milestone": "M1",
+  "purpose": "Echo handling for streamers on speakers: WebRTC AEC3 through livekit, an energy double-talk gate, and a null canceller.",
+  "public_api": "class WebRtcAEC(EchoCanceller): __init__(self, rate: int = 48000, *, ns: bool = True, hpf: bool = True, agc: bool = False, delay_hint_ms: int = 0)\nclass EnergyDTD: __init__(self, k: float = 2.0, window_s: float = 0.35); gate(self, mic_rms: float, ref_rms: float, vad_p: float) -> float\nclass NullAEC(EchoCanceller)\ndef make_echo_canceller(mode: EchoMode, headphones: bool) -> tuple[EchoCanceller | None, EchoMode]",
+  "depends_on": [
+   "contracts.io"
+  ],
+  "external_deps": [
+   "livekit==1.1.20 (extra aec, lazy import)"
+  ],
+  "acceptance_tests": [
+   "make_echo_canceller('auto', headphones=True) returns (None, 'none'); an ImportError from livekit falls back to energy_dtd",
+   "Synthetic linear echo at 120 ms delay: ERLE ≥ 15 dB (skipped if livekit is absent)",
+   "Frames are exactly 10 ms int16, and set_stream_delay_ms is called before each process_stream"
+  ],
+  "implementation_notes": "Port WebRtcAEC and the energy_dtd logic from the audio brief. Feed the reference from player.reference (post-gain blocks) before the matching mic frames. Ignore barge-in for aec_warmup_s after start."
+ },
+ {
+  "id": "voice.vad",
+  "path": "src/aivtube/voice/vad.py",
+  "milestone": "M1",
+  "purpose": "Voice activity detectors: Silero via onnxruntime with no torch, Silero via sherpa-onnx's runtime (the coexistence fallback), and an energy detector.",
+  "public_api": "class SileroOrtVAD(VoiceActivityDetector): __init__(self, onnx_path: Path)\nclass SherpaSileroVAD(VoiceActivityDetector): __init__(self, onnx_path: Path, *, threshold: float = 0.5)\nclass EnergyVAD(VoiceActivityDetector): __init__(self, threshold_dbfs: float = -42.0)\ndef make_vad(backend: Literal['silero_ort','silero_sherpa','energy'], model: Path, sha256: str) -> VoiceActivityDetector",
+  "depends_on": [
+   "contracts.io"
+  ],
+  "external_deps": [
+   "onnxruntime==1.30.0",
+   "sherpa-onnx==1.13.8"
+  ],
+  "acceptance_tests": [
+   "SileroOrtVAD takes 512-sample frames with a 64-sample context and state [2,1,128]; speech probability on a fixture is above 0.5",
+   "make_vad raises on a sha256 mismatch",
+   "Windows CI (ORT coexistence, S3): SileroOrtVAD and SherpaSileroVAD both run inference in one process"
+  ],
+  "implementation_notes": "Use the STT brief's torch-free numpy wrapper with intra/inter threads = 1. SherpaSileroVAD maps sherpa's per-frame is_speech_detected to a probability of 0 or 1; pre-roll is handled by the endpointer's ring buffer, so it is not lost. Never pip install silero-vad (it pulls in torch)."
+ },
+ {
+  "id": "voice.endpointer",
+  "path": "src/aivtube/voice/{endpointer,frontend}.py",
+  "milestone": "M1",
+  "purpose": "Mic front-end (AEC → 48k-to-16k resample → VAD → endpointing) with pre-roll, forced splits that do not end the turn, and an M2 particle-hint hook.",
+  "public_api": "class SileroEndpointer(Endpointer): __init__(self, vad: VoiceActivityDetector, cfg: EndpointerConfig, *, frame_ms: int = 32)\nclass VoiceFrontEnd: __init__(self, endpointer: Endpointer, *, player: AudioOut | None, aec: EchoCanceller | None, dtd: EnergyDTD | None, in_rate: int = 48000, on_event: Callable[[VadEvent], None]); feed(self, frame48k: F32, t_capture: float) -> None; recent_audio(self, seconds: float) -> F32; set_enabled(self, enabled: bool) -> None; set_ptt(self, held: bool) -> None",
+  "depends_on": [
+   "contracts.io",
+   "voice.vad",
+   "voice.aec"
+  ],
+  "external_deps": [
+   "soxr==1.1.0",
+   "numpy"
+  ],
+  "acceptance_tests": [
+   "FakeVAD sequences: min speech 250 ms, 300 ms pre-roll included, VadEnd after 600 ms of silence",
+   "At 15 s the endpointer emits VadPartial with no VadEnd, and the turn continues; VadEnd comes at max_turn_s",
+   "barge_threshold is used while ai_speaking; when disabled or with ptt released, no events are emitted",
+   "With particle_endpointing=False, set_tail_hint is ignored"
+  ],
+  "implementation_notes": "Combine the STT brief's Endpointer semantics with the audio brief's VoiceFrontEnd. Runs on the mic-consumer thread and posts events to the loop with call_soon_threadsafe. Keep a 1 s ring of 16 kHz audio for barge-in confirmation."
+ },
+ {
+  "id": "voice.barge",
+  "path": "src/aivtube/voice/barge.py",
+  "milestone": "M1",
+  "purpose": "Local barge-in reflex: duck immediately, confirm with a quick decode, cut locally, and recover from false alarms.",
+  "public_api": "@dataclass(frozen=True) class BargeConfig(duck_db: float = -12.0, confirm_min_ms: int = 500, confirm_min_chars: int = 3, false_timeout_s: float = 2.0, cut_fade_ms: int = 60, aec_warmup_s: float = 3.0, boundary_ignore_s: float = 1.0, backchannels: frozenset[str] = ...)\nclass BargeInController: __init__(self, *, player: AudioOut, stt: 'SttRunner', frontend: VoiceFrontEnd, cfg: BargeConfig, send: Callable[[str, Mapping[str, Any]], None], clock: Callable[[], float] = time.perf_counter); set_policy(self, policy: BargePolicy) -> None; on_vad_start(self, t: float, during_playback: bool) -> None; on_vad_end(self, t: float) -> None; async run(self) -> None\ndef is_backchannel(text: str, backchannels: frozenset[str]) -> bool",
+  "depends_on": [
+   "contracts.io",
+   "voice.endpointer",
+   "voice.stt"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Real speech during playback: duck within 80 ms, confirm, player.cancel, send barge.confirmed{cut_local:true}",
+   "'อืม' or a 0.25 s blip does not cut; the 2 s false-interruption timeout restores the gain",
+   "policy duck_only never cuts; no barge-in during the AEC warm-up"
+  ],
+  "implementation_notes": "The quick decode runs on the STT thread at high priority over the last 0.8 s (20–60 ms). Backchannels are ignored within 1 s of the start or end of her utterance."
+ },
+ {
+  "id": "voice.stt",
+  "path": "src/aivtube/voice/stt/",
+  "milestone": "M1",
+  "purpose": "Speech recognizers: Typhoon RT via sherpa-onnx, PyThaiASR, and the Typhoon API (opt-in). Includes post-processing, a single-thread priority runner and the partial-utterance assembler.",
+  "public_api": "class SherpaTyphoonRT(SpeechRecognizer): __init__(self, model_dir: Path, *, num_threads: int = 2)\nclass PyThaiAsrRecognizer(SpeechRecognizer): __init__(self)\nclass TyphoonApiRecognizer(SpeechRecognizer): __init__(self, base_url: str, model: str, api_key: str)\nclass NamePostProcessor(TranscriptPostProcessor): __init__(self, aliases: Mapping[str, Sequence[str]], *, min_audio_s: float = 0.3, echo_ratio: float = 0.6)\nclass SttRunner: __init__(self, chain: Sequence[SpeechRecognizer], post: TranscriptPostProcessor, *, timeout_s: float = 3.0); async transcribe(self, pcm16k: F32, *, quick: bool = False, recent_tts_text: str = '') -> Transcript | None; close(self) -> None\nclass UtteranceAssembler: add_partial(self, t: Transcript) -> None; finish(self, last: Transcript | None) -> Transcript | None",
+  "depends_on": [
+   "contracts.io"
+  ],
+  "external_deps": [
+   "sherpa-onnx==1.13.8",
+   "pythaiasr==2.1.0 (extra)",
+   "httpx2 (API)"
+  ],
+  "acceptance_tests": [
+   "FakeRecognizer through SttRunner: a quick request jumps ahead of queued normal requests; a timeout moves to the next backend",
+   "NamePostProcessor maps ไทลิน/ไทยลิน to ไพลิน, drops audio shorter than 0.3 s, and drops echoes of recent TTS text",
+   "The assembler joins partials with spaces and parts == count",
+   "Nightly: real Typhoon RT on the golden Thai clips stays within the CER bound"
+  ],
+  "implementation_notes": "Use sherpa_onnx.OfflineRecognizer.from_transducer(encoder, decoder, joiner, tokens, num_threads=2, sample_rate=16000, feature_dim=80, decoding_method='greedy_search', model_type='nemo_transducer', provider='cpu'). Keep one recognizer per process and decode on a dedicated thread; decode_stream releases the GIL. The API recognizer is added to the chain only with cloud_stt_consent."
+ },
+ {
+  "id": "voice.tts",
+  "path": "src/aivtube/voice/tts/",
+  "milestone": "M1",
+  "purpose": "TTS backends (edge, Azure, Piper, captions) plus a router with voice-identity groups, breakers, token buckets and a phrase cache.",
+  "public_api": "class EdgeTTS(TTSBackend): __init__(self, *, ssl_ctx: ssl.SSLContext | None = None)\nclass AzureTTS(TTSBackend): __init__(self, key: str, region: str, *, tier: Literal['F0','S0'] = 'F0', requests_per_min: int = 18)\nclass PiperTTS(TTSBackend): __init__(self, model: Path, lexicon: Mapping[str, str])\nclass CaptionsOnly(TTSBackend)\nclass DiskPhraseCache(PhraseCache): __init__(self, root: Path)\nclass TokenBucket: __init__(self, capacity: int, per_s: float, clock: Callable[[], float]); try_take(self) -> bool\n@dataclass(frozen=True) class IdentityCfg(name: str, voice: VoiceSpec, backends: tuple[str, ...])\nclass TTSRouter: __init__(self, identities: Mapping[str, IdentityCfg], backends: Mapping[str, TTSBackend], chain_by_character: Mapping[str, Sequence[str]], *, first_timeout_s: float = 2.0, later_timeout_s: float = 4.0, later_retries: int = 1, captions_fallback: bool = True); begin_utterance(self, character: str) -> 'UtteranceTTS'; constraints(self, character: str) -> TTSConstraints\nclass UtteranceTTS: identity: str; synth(self, text: str, *, first: bool, speculative: bool = False) -> AsyncIterator[AudioChunk | WordMark]; degraded: bool",
+  "depends_on": [
+   "contracts.io",
+   "text.normalize"
+  ],
+  "external_deps": [
+   "edge-tts==7.2.8",
+   "av==18.1.0",
+   "azure-cognitiveservices-speech==1.51.2 (extra)",
+   "piper-tts[th]==1.8.0 (extra)"
+  ],
+  "acceptance_tests": [
+   "With FakeTTS: first-audio timeout moves to the next backend in the same identity; when the identity is exhausted mid-utterance, the rest is captions-only, and never Piper within the same utterance",
+   "An empty Azure bucket skips Azure for that segment without waiting; speculative synthesis never uses a quota-limited backend",
+   "Stateful PyAV decode of a recorded edge MP3 fixture is sample-exact against whole-buffer decoding",
+   "3 failures in 60 s open the breaker for 120 s"
+  ],
+  "implementation_notes": "Edge: one Communicate per chunk with boundary='WordBoundary', a fresh av.CodecContext('mp3','r') per chunk (never decode 720-byte messages on their own), and _SSL_CTX overridable for TLS-intercepting proxies. Azure: Raw24Khz16BitMonoPcm, the synthesizing event, pre-connect with Connection.from_speech_synthesizer(syn).open(True). Piper resamples 22.05 kHz, and requests must be installed. The cache key is (backend, voice, rate, pitch, normalized_text)."
+ },
+ {
+  "id": "voice.lipsync",
+  "path": "src/aivtube/voice/lipsync.py",
+  "milestone": "M1",
+  "purpose": "Mouth-open and mouth-form tracks at 60 fps, computed from PCM as it streams.",
+  "public_api": "@dataclass(frozen=True) class LipSyncConfig(fps: int = 60, floor_db: float = -45.0, ceil_db: float = -12.0, gamma: float = 0.7, attack_ms: float = 30.0, release_ms: float = 80.0)\nclass LipSyncAnalyzer: __init__(self, cfg: LipSyncConfig = LipSyncConfig()); feed(self, pcm: F32, sample_rate: int) -> tuple[np.ndarray, np.ndarray]; reset(self) -> None",
+  "depends_on": [
+   "contracts.io"
+  ],
+  "external_deps": [
+   "numpy"
+  ],
+  "acceptance_tests": [
+   "Silence gives mouth 0; a loud vowel gives mouth above 0.7; chunked feeding equals whole-buffer analysis within 1e-3",
+   "Cost is under 10 ms per second of audio"
+  ],
+  "implementation_notes": "Port lipsync.py from the avatar brief (RMS → dBFS → normalise → gamma → one-pole attack/release; form from the high/low band energy ratio). The 40 ms lead is applied by the avatar driver, not here."
+ },
+ {
+  "id": "voice.speech_queue",
+  "path": "src/aivtube/voice/speech_queue.py",
+  "milestone": "M1",
+  "purpose": "Turns segments into TTS output and then player audio: prefetch, gating, fillers, markers, heard-text accounting, lip tracks and canned phrases.",
+  "public_api": "class SpeechQueue: __init__(self, *, player: AudioOut, tts: TTSRouter, lipsync_factory: Callable[[], LipSyncAnalyzer], cache: PhraseCache, send: Callable[[str, Mapping[str, Any]], None], clock: Callable[[], float] = time.perf_counter, max_in_flight: int = 2, max_queued: int = 8, filler_min_interval_s: float = 30.0); async begin(self, utt: str, character: str, *, filler_after_s: float | None, gate_open: bool) -> None; async segment(self, seg: Segment) -> bool; async open_gate(self, utt: str) -> None; async stop(self, utt: str | None, mode: StopMode, reason: str, fade_ms: int) -> None; async play_canned(self, key: str, character: str) -> None; set_muted(self, on: bool) -> None; recent_tts_text(self, window_s: float = 10.0) -> str; async drop_all(self) -> None",
+  "depends_on": [
+   "contracts.io",
+   "voice.tts",
+   "voice.lipsync",
+   "voice.audio_io"
+  ],
+  "external_deps": [
+   "numpy"
+  ],
+  "acceptance_tests": [
+   "Segment k+1 synthesis starts before segment k finishes playing (structural)",
+   "stop(after_segment) lets the current segment finish and drops the rest; stop(now) fades within one block; utterance_done reports heard_text truncated at the last complete WordMark",
+   "A filler plays if there is no first audio by filler_after_s, at most once per 30 s, and is flagged so it is not recorded as heard",
+   "A gated utterance synthesises but does not play until open_gate; with >8 queued, segment() returns False"
+  ],
+  "implementation_notes": "Sends segment_started, lip.track, segment_done and utterance_done over IPC. Captions-only segments emit segment_started{silent:true, duration_s=len/12.5}. drop_all is used by I1 when the link drops: finish the current segment, then clear everything."
+ },
+ {
+  "id": "voice.worker",
+  "path": "src/aivtube/voice/worker.py",
+  "milestone": "M1",
+  "purpose": "Entry point for the voice process. Wires audio, front-end, STT, barge-in, TTS and SpeechQueue to the IPC client, and enforces invariant I1.",
+  "public_api": "def main(argv: list[str] | None = None) -> int\nclass VoiceWorker: __init__(self, bus_url: str, token: str, *, backend: AudioBackend | None = None, clock: Callable[[], float] = time.perf_counter); async run(self) -> None; async apply_configure(self, data: Mapping[str, Any]) -> None; async apply_policy(self, policy: VoicePolicy) -> None",
+  "depends_on": [
+   "ipc",
+   "voice.audio_io",
+   "voice.aec",
+   "voice.vad",
+   "voice.endpointer",
+   "voice.barge",
+   "voice.stt",
+   "voice.tts",
+   "voice.speech_queue",
+   "contracts.ipc"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "In-process integration with FakeSD, real Silero, FakeRecognizer and FakeTTS: voice turn events flow and heartbeats are answered",
+   "Link drop: finishes the current segment, clears the queue, stops listening; resumes after the new hello",
+   "A 15 s monologue produces one stt.final with parts ≥ 2 and no early final",
+   "mic_mode deafened suppresses vad and stt messages"
+  ],
+  "implementation_notes": "Calls sys.setswitchinterval(0.001) at start. Warm-up covers VAD, STT and the TTS phrase cache (verifying 'Filtered.' exists) before health=ok. Sends tts.constraints after configure and whenever the primary backend changes. Must never import anything from the core except contracts."
+ },
+ {
+  "id": "speech.output",
+  "path": "src/aivtube/speech/output.py",
+  "milestone": "M1",
+  "purpose": "Core-side SpeechOutput implementations: a proxy to the voice worker over IPC, and a console printer for text mode.",
+  "public_api": "class BusSpeechOutput(SpeechOutput): __init__(self, server: IpcServer, bus: EventBus, clock: Clock, *, lip_sink: Callable[[LipTrack], None], on_cut: Callable[[str, float], None])\nclass ConsoleSpeechOutput(SpeechOutput): __init__(self, out: TextIO, bus: EventBus, clock: Clock, *, chars_per_s: float = 12.5)",
+  "depends_on": [
+   "contracts.io",
+   "contracts.ipc",
+   "ipc",
+   "events"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Passes speech_output_suite",
+   "Worker messages become SegmentStarted/SegmentDone/UtteranceDone events carrying character and turn_id; lip.track goes to lip_sink, not the bus",
+   "ConsoleSpeechOutput emits simulated audible timing"
+  ],
+  "implementation_notes": "constraints() returns the latest tts.constraints per character, with defaults from config until the first message arrives. stop() also calls on_cut so the mouth closes at once."
+ },
+ {
+  "id": "llm",
+  "path": "src/aivtube/llm/{openai_stream,providers,router}.py",
+  "milestone": "M1",
+  "purpose": "OpenAI-compatible streaming providers (llama.cpp, Typhoon, Gemini) and the fallback router with breakers, consent gating, promote/rollback and auto-rollback.",
+  "public_api": "@dataclass(frozen=True) class ProviderCfg(name: str, kind: str, flavor: str, base_url: str, model: str, api_key_env: str | None, first_token_timeout_s: float, cloud: bool, extra_body: Mapping[str, Any], reasoning_effort: str | None, slot_map: Mapping[str, int])\nclass OpenAICompatProvider(LLMProvider): __init__(self, cfg: ProviderCfg, *, secrets: Secrets, http_client: Any | None = None, clock: Clock)\nasync def stream_turn(provider: OpenAICompatProvider, req: ChatRequest) -> AsyncIterator[LLMEvent]\nclass FallbackRouter(LLMRouter): __init__(self, providers: Sequence[LLMProvider], *, chain: Sequence[str], consent: bool, canned_line: str, auto_rollback: Mapping[str, float], bus: EventBus, clock: Clock, servers: LocalServerManager | None = None)\nclass CannedProvider(LLMProvider): __init__(self, line: str)",
+  "depends_on": [
+   "contracts.domain",
+   "config",
+   "infra"
+  ],
+  "external_deps": [
+   "openai==3.19.2",
+   "httpx2"
+  ],
+  "acceptance_tests": [
+   "httpx2.MockTransport: connect error before the first token → next provider; failure after the first token → ProviderFailed(emitted=True) and no fallback",
+   "Gemini chunk with no index plus a thought_signature is accumulated and kept; extra_content is stripped for other providers",
+   "Cloud providers are skipped when consent=False; auto_rollback fires on 3 failures within 10 min of promote",
+   "Cancelling the consuming task closes the stream (transport records the close); Done carries prompt_n and cache_n from llama timings"
+  ],
+  "implementation_notes": "Port stream_turn and FallbackChain from the LLM brief. Use AsyncOpenAI(max_retries=0, timeout=httpx2.Timeout(60, connect=2)) and await stream.close() in finally. The tool-call accumulator keys on index, then id, then position; JSON is parsed after the stream (json.loads, then json_repair). Always send string content. For llama.cpp, extra_body carries id_slot, cache_prompt and parallel_tool_calls. Never call models.list on Typhoon. Breaker backoff is min(60, 2^fails)."
+ },
+ {
+  "id": "llm.llamacpp",
+  "path": "src/aivtube/llm/llamacpp.py",
+  "milestone": "M1",
+  "purpose": "llama-server admin client (health, props assertion, slot save/restore) and the LocalServerManager that asks the launcher to start or stop servers.",
+  "public_api": "class TemplateCapsError(RuntimeError)\nclass LlamaCppAdmin: __init__(self, base_url: str, http: Any); async health(self) -> Literal['ok','loading','down']; async props(self) -> Mapping[str, Any]; async assert_tool_caps(self) -> None; async save_slot(self, slot: int, filename: str) -> bool; async restore_slot(self, slot: int, filename: str) -> bool\nclass LauncherServerManager(LocalServerManager): __init__(self, emergency_url: str, token: str, admins: Mapping[str, LlamaCppAdmin])",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "httpx2"
+  ],
+  "acceptance_tests": [
+   "assert_tool_caps raises TemplateCapsError when /props chat_template_caps.supports_tool_calls is false",
+   "A 503 /health means 'loading'",
+   "save_slot posts /slots/{id}?action=save with a filename"
+  ],
+  "implementation_notes": "The root /health endpoint is public (no /v1 prefix). Slot files are named '<char>-<prefix_hash>.bin' and live under --slot-save-path."
+ },
+ {
+  "id": "avatar",
+  "path": "src/aivtube/avatar/",
+  "milestone": "M1",
+  "purpose": "VTube Studio client and sink, UDP discovery, a 60 Hz driver (lip tracks + emotion baseline + idle motion) on the PrecisionTicker, and the expression state machine.",
+  "public_api": "class VTSClient: __init__(self, url: str, plugin_name: str, plugin_developer: str, token_path: Path, *, connect: Callable[..., Any] = websockets.connect); async connect(self) -> None; async authenticate(self) -> bool; async request(self, message_type: str, data: Mapping[str, Any] | None = None, timeout: float = 2.0) -> Mapping[str, Any]; inject(self, values: Mapping[str, float]) -> None; events: asyncio.Queue[Mapping[str, Any]]; connected: bool; last_ff_error: int | None\nclass VTSSink(AvatarSink): __init__(self, client: VTSClient, emotion_map: Mapping[str, Mapping[str, Any]], clock: Clock)\nasync def discover_vts(timeout_s: float = 2.5) -> list[dict[str, Any]]\nclass IdleMotion: __init__(self, seed: int = 0); sample(self, t: float, speech_level: float) -> dict[str, float]\nclass EmotionController: __init__(self, emotion_map: Mapping[str, Mapping[str, Any]]); apply(self, emotion: str) -> tuple[list[str], list[str]]; baseline(self) -> dict[str, float]\nclass LiveAvatarDriver(AvatarDriver): __init__(self, sink: AvatarSink, clock: Clock, *, fps: int = 60, lead_ms: float = 40.0, jitter_fallback_fps: int = 30, ticker_factory: Callable[..., PrecisionTicker])\nclass NullSink(AvatarSink)",
+  "depends_on": [
+   "contracts.io",
+   "infra"
+  ],
+  "external_deps": [
+   "websockets>=17.1,<18",
+   "numpy"
+  ],
+  "acceptance_tests": [
+   "FakeVTS: token auth and reuse; 120 frames at 60 Hz with 0 dropped; an event carrying the subscription requestID is not mistaken for the response",
+   "Error 454 → warning plus switch to the custom parameter PailinMouthOpen; the reconnect loop re-authenticates and reconciles expressions",
+   "The driver samples lip tracks at perf_counter()+lead; on_cut closes the mouth within the release time; parameters are re-sent at least every second while idle",
+   "set_emotion is idempotent (ExpressionActivationRequest with an explicit active flag, never a toggle hotkey)"
+  ],
+  "implementation_notes": "Port vts_client.py, lipsync/IdleMotion, emotion.py and discovery.py from the avatar brief. Connect with proxy=None, compression=None, ping_interval=None, open_timeout=3, max_size=16 MiB to 127.0.0.1. Resolve a pending request only when both requestID and '<X>Response'/APIError match. Injection is fire-and-forget with at most 8 in flight. faceFound=true. Spin = 4 × 90° relative MoveModelRequest. The driver is paced by the PrecisionTicker, and the core uses it only through AvatarDriver."
+ },
+ {
+  "id": "chat.window",
+  "path": "src/aivtube/chat/window.py",
+  "milestone": "M1",
+  "purpose": "The limited chat window: dedupe, priority routing, scoring and softmax selection of k candidates, plus read-aloud consumption.",
+  "public_api": "@dataclass(frozen=True) class WindowConfig(horizon_s: float = 40.0, must_ack_ttl_s: float = 600.0, temperature: float = 0.6, user_cooldown_s: float = 60.0, dedupe_lru: int = 5000, max_msg_chars: int = 300)\nclass ScoredChatWindow(ChatWindow): __init__(self, clock: Clock, cfg: WindowConfig, name_matcher: Callable[[str], bool], rng: random.Random | None = None)",
+  "depends_on": [
+   "contracts.domain",
+   "text.normalize"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "12 messages in 3 s: select gives k=3, at most one per user, a mention preferred, and the window consumed afterwards",
+   "Donations, subs and raids go to must_ack sorted by value_usd; shared-chat messages and '!' commands are dropped; duplicates are penalised",
+   "consume(id) removes a message; recent(60) returns consumed and live messages for read-aloud dedupe"
+  ],
+  "implementation_notes": "Port ChatWindow from the chat brief's chatmodel.py with this score: 2·exp(-age/15) + 3·mention + 0.8·question + 0.7·sub + 0.5·mod + 0.3·vip + 0.5·first − 1.5·ln(dup) − 5·recent_pick. YouTube giftEvent is deduped on (id, comboCount)."
+ },
+ {
+  "id": "chat.twitch_irc",
+  "path": "src/aivtube/chat/twitch_irc.py",
+  "milestone": "M1",
+  "purpose": "Zero-config, read-only anonymous Twitch IRC chat source with parsing of bits, subs and raids.",
+  "public_api": "class TwitchAnonIrc(ChatSource): __init__(self, channel: str, *, clock: Clock, url: str = 'wss://irc-ws.chat.twitch.tv:443', connect: Callable[..., Any] = websockets.connect)\ndef parse_irc_line(line: str, *, received: float) -> ChatMessage | None",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "websockets>=17.1,<18"
+  ],
+  "acceptance_tests": [
+   "Recorded PRIVMSG lines parse badges into sub/mod/vip, the first-msg flag and the bits tag into a DONATION (0.01 USD/bit)",
+   "USERNOTICE sub/resub/subgift/raid map to SUB/GIFT_SUB/RAID",
+   "PING gets PONG; a disconnect reconnects with backoff; messages are deduped by id; source-room-id different from the channel is dropped"
+  ],
+  "implementation_notes": "Sends CAP REQ :twitch.tv/tags twitch.tv/commands, PASS SCHMOOPIIE, NICK justinfan<5 digits>, JOIN #channel. The websockets connection uses proxy defaults. Health is DEGRADED after 5 minutes with no PING."
+ },
+ {
+  "id": "chat.youtube_poll",
+  "path": "src/aivtube/chat/youtube_poll.py",
+  "milestone": "M1",
+  "purpose": "YouTube live chat via liveChatMessages.list polling with an API key. Selected in M1 only if spike S9 shows YouTube is the primary platform.",
+  "public_api": "class YouTubeListPoller(ChatSource): __init__(self, api_key: str, *, video_id: str | None = None, handle: str | None = None, clock: Clock, http: Any | None = None, min_interval_s: float = 2.0)\nasync def resolve_live_chat_id(http: Any, api_key: str, video_id: str) -> str | None\nasync def live_video_id_from_handle(http: Any, handle: str) -> str | None",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "httpx2"
+  ],
+  "acceptance_tests": [
+   "Fixture JSON: the first page is skipped as backlog; sleep is max(pollingIntervalMillis/1000, 2 s)",
+   "superChatEvent becomes a DONATION with amountMicros/1e6 and currency; isChatModerator/isChatSponsor/isChatOwner map to user flags",
+   "A quota counter tracks 1 unit per call; a 403 marks the source DEGRADED with a hint"
+  ],
+  "implementation_notes": "Resolve activeLiveChatId via videos.list?part=liveStreamingDetails (1 unit). The @handle/live scrape is fragile and must be confirmed with videos.list. streamList over gRPC comes in M3."
+ },
+ {
+  "id": "memory",
+  "path": "src/aivtube/memory/{store,ops_db,backup}.py, migrations/*.sql",
+  "milestone": "M1",
+  "purpose": "Per-character SQLite memory store (turns, epochs, slots, viewer facts, FTS) and the shared ops database (traces, moderation, audit, jobs).",
+  "public_api": "class SqliteMemory(MemoryStore): __init__(self, path: Path, character: str, clock: Clock, *, core_slots: int = 16, slot_max_chars: int = 120, executor: concurrent.futures.Executor | None = None)\nclass OpsDb: __init__(self, path: Path, *, executor: concurrent.futures.Executor | None = None); async add_trace(self, trace: Mapping[str, Any]) -> None; async log_moderation(self, **row: Any) -> None; async log_tool(self, **row: Any) -> None; async log_op(self, **row: Any) -> None; async enqueue_job(self, kind: str, payload: Mapping[str, Any], *, run_at: float | None = None) -> int; async due_jobs(self, now: float) -> list[Mapping[str, Any]]; async finish_job(self, job_id: int, *, ok: bool, error: str | None = None) -> None; async recent_traces(self, n: int = 20) -> list[Mapping[str, Any]]\ndef fts5_trigram_available() -> bool",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "sqlite3 (stdlib, >= 3.34 for trigram)"
+  ],
+  "acceptance_tests": [
+   "Passes memory_store_suite; Thai FTS finds 'มันไก่'; with trigram unavailable it falls back to LIKE",
+   "remember raises SlotsFull at 16; replace_slot works; a locked item refuses forget; quarantined items are excluded from prefix_block",
+   "A new epoch's prefix digest changes only when core slots, episodes or the rolling summary change",
+   "A session resumes within max_age; backup keeps 14 files"
+  ],
+  "implementation_notes": "Use the schema in ARCHITECTURE.md §6 with WAL, synchronous=NORMAL, busy_timeout=5000 and foreign keys on. All I/O goes through one single-thread executor. Migrations are numbered and tracked by PRAGMA user_version. Backups use sqlite3.backup. PrefixMemory.digest is a sha256 of the rendered context block."
+ },
+ {
+  "id": "safety",
+  "path": "src/aivtube/safety/{normalize,keyword,pii,gate,audit}.py, lists/",
+  "milestone": "M1",
+  "purpose": "Tier-0 Thai-aware filter with overlays, the layered SafetyGate (input, output with prev_tail, args, names), auto-strict, and the moderation audit.",
+  "public_api": "@dataclass(frozen=True) class MatchForms(norm: str, despaced: str, leet: str, tokens: tuple[str, ...])\ndef match_forms(text: str) -> MatchForms\nclass KeywordRegexFilter(TextFilter): __init__(self, base_dir: Path, private_dir: Path | None, overlays: Sequence[Path] = ())\nclass LayeredSafetyGate(SafetyGate): __init__(self, tier0: TextFilter, *, ops: OpsDb, bus: EventBus, clock: Clock, cfg: Mapping[str, Any], classifier: Classifier | None = None, platform_overlays: Mapping[str, TextFilter] | None = None, character_overlays: Mapping[str, TextFilter] | None = None)\ndef check_name(gate: SafetyGate, name: str, character: str) -> str",
+  "depends_on": [
+   "contracts.domain",
+   "text.normalize",
+   "memory"
+  ],
+  "external_deps": [
+   "pyahocorasick==2.3.1",
+   "pythainlp==5.3.8"
+  ],
+  "acceptance_tests": [
+   "Thai false-positive list (e.g. หีบ) passes; the red-team list blocks, including zero-width, despaced 'f u c k' / Thai letter-spelled, leet, and a phrase split across two chunks when prev_tail is supplied",
+   "monarchy_112 hits are fail_closed=True and block even when the classifier times out",
+   "Input: URL/phone/national ID are masked; a gambling_scam message is dropped; a flagged name becomes 'ใครบางคน'",
+   "3 blocks within 5 min switch on strict mode for that character; auto-freeze only fires when configured"
+  ],
+  "implementation_notes": "Warm newmm at startup. Token rules match newmm tokens of the normalised text. Substring rules (Aho-Corasick) are only for entries marked unambiguous, and run over the norm and despaced forms. Replace rules implement hard-coded speech patches. Overlay precedence: base < platform < character. Audit rows store PII-masked text plus sha256. Blocked text is never returned to callers that feed history."
+ },
+ {
+  "id": "tools",
+  "path": "src/aivtube/tools/{registry,builtin/memory}.py",
+  "milestone": "M1",
+  "purpose": "Policy-enforcing tool registry (validation, argument filtering, rate limits, approval, dry-run, audit) and the M1 memory tools.",
+  "public_api": "class PolicyToolRegistry(ToolRegistry): __init__(self, tools: Sequence[Tool], *, gate: SafetyGate, ops: OpsDb, bus: EventBus, clock: Clock, enabled_by_character: Mapping[str, Sequence[str]], approval: Callable[[str, ToolCall], Awaitable[bool]] | None = None)\nclass RememberTool(Tool): __init__(self, *, max_writes_per_session: int = 8, min_interval_s: float = 120.0, chat_sourced: Literal['quarantine','allow'] = 'quarantine')\nclass ForgetTool(Tool)\nREMEMBER_SPEC: ToolSpec; FORGET_SPEC: ToolSpec",
+  "depends_on": [
+   "contracts.domain",
+   "safety",
+   "memory"
+  ],
+  "external_deps": [
+   "jsonschema==4.26.0",
+   "json-repair==0.63.5"
+  ],
+  "acceptance_tests": [
+   "Invalid args return ToolResult(ok=False) with validator messages; free-text args are filtered; a disabled tool returns 'unavailable now' while specs() stays unchanged (cache-stable)",
+   "remember from a chat-triggered stimulus is stored quarantined; PII is refused; rate limits apply; SlotsFull returns the slot list to the model",
+   "dry_run logs without executing; everything is written to tool_audit"
+  ],
+  "implementation_notes": "specs() returns a byte-stable ordering. The remember schema is {text ≤120, about?, importance 1–5, replace_slot 1–16}. about= matching a viewer in the current chat block becomes a viewer fact (always quarantined). ToolResult.content is a JSON string."
+ },
+ {
+  "id": "brain.intake",
+  "path": "src/aivtube/brain/intake.py",
+  "milestone": "M1",
+  "purpose": "Turns transcripts, chat, support events and operator input into Stimuli: addressing, mic modes, read-aloud dedupe, mention detection and input filtering.",
+  "public_api": "class Intake: __init__(self, character: CharacterConfig, *, gate: SafetyGate, window: ChatWindow, submit: Callable[[Stimulus], None], note: Callable[[str], Awaitable[None]], clock: Clock, bus: EventBus, cfg: Mapping[str, Any]); on_transcript(self, ev: UserTranscript) -> None; on_chat(self, m: ChatMessage) -> None; on_support(self, m: ChatMessage) -> None; on_operator(self, kind: Literal['say','direct'], text: str) -> None; set_addressing(self, mode: Literal['always','name_or_question']) -> None; mark_spoke_to_streamer(self, t: float) -> None",
+  "depends_on": [
+   "contracts.domain",
+   "events",
+   "text.normalize",
+   "chat.window",
+   "safety"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "name_or_question: an unaddressed utterance becomes a note, not a stimulus; a question or name mention becomes a VOICE stimulus",
+   "A transcript matching a recent chat message (ratio ≥ 0.75) consumes it and sets payload.read_aloud_of",
+   "A mention becomes a MENTION stimulus; a donation with blocked text becomes SUPPORT whose text is 'Filtered.' with name and amount kept"
+  ],
+  "implementation_notes": "VOICE stimuli get rank VOICE, priority HIGH and ttl 20 s. The 8 s follow-up window starts when she finishes an utterance to the streamer. Chat text is capped at 300 chars and role tokens are stripped here."
+ },
+ {
+  "id": "brain.arbiter",
+  "path": "src/aivtube/brain/arbiter.py",
+  "milestone": "M1",
+  "purpose": "Pending-stimulus store with rank/TTL selection, cadence rules, the user_speaking gate and merge-after-decision.",
+  "public_api": "@dataclass(frozen=True) class MergedContext(primary: Stimulus, merged: tuple[Stimulus, ...], chat: ChatSelection | None, support: tuple[Stimulus, ...], game_context: tuple[Stimulus, ...])\nclass Arbiter: __init__(self, clock: Clock, window: ChatWindow, cfg: Mapping[str, Any]); push(self, s: Stimulus) -> None; async next(self, *, idle_deadline: float | None, user_speaking: Callable[[], bool]) -> Stimulus | None; drain_context(self, primary: Stimulus) -> MergedContext; pending(self) -> list[Stimulus]; clear(self, *, keep: frozenset[StimulusKind] = frozenset({StimulusKind.SUPPORT})) -> None",
+  "depends_on": [
+   "contracts",
+   "contracts.domain"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "FakeClock: the lowest rank wins and the oldest wins ties; the aging bonus prevents starvation; expired stimuli emit StimulusExpired",
+   "While user_speaking only OPERATOR is eligible",
+   "Chat interval of 4 s (8 s after a recent voice turn) and 1 s gather; at most one support per decision",
+   "drain_context attaches the window selection and everything queued since the last decision"
+  ],
+  "implementation_notes": "next() waits on an asyncio.Event plus timers of at least 50 ms. It returns None when idle_deadline passes and nothing is eligible."
+ },
+ {
+  "id": "brain.preempt",
+  "path": "src/aivtube/brain/preempt.py",
+  "milestone": "M1",
+  "purpose": "Pure implementation of the priority/interrupt table (ARCHITECTURE.md §4.4, §4.3b).",
+  "public_api": "@dataclass(frozen=True) class BrainSnapshot(state: str, user_speaking: bool, decision_turn: str | None, decision_rank: Rank | None, utterance: str | None, audible: bool, paused: bool)\n@dataclass(frozen=True) class PreemptAction(cancel_decision: bool, speech_stop: StopMode | None, start_now: bool, reason: str)\ndef decide_preemption(incoming: Stimulus, snap: BrainSnapshot) -> PreemptAction",
+  "depends_on": [
+   "contracts",
+   "contracts.io"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Table test: LOW, MEDIUM, HIGH and CRITICAL while SPEAKING and while DECIDING-nothing-audible produce the exact §4.4 actions",
+   "A better rank with ≥HIGH while nothing is audible aborts; the same priority with a worse rank does not"
+  ],
+  "implementation_notes": "No I/O and no clock. Exhaustively table-tested."
+ },
+ {
+  "id": "brain.prompt",
+  "path": "src/aivtube/brain/prompt.py",
+  "milestone": "M1",
+  "purpose": "Cache-stable prompt assembly: static system+tools, epoch context block, append-only compact history, volatile tail, token budgets.",
+  "public_api": "@dataclass(frozen=True) class PromptEpoch(id: int, messages: tuple[Mapping[str, Any], ...], prefix_hash: str, tokens: int, slot: int)\n@dataclass(frozen=True) class TurnContext(stimulus: Stimulus, merged: MergedContext, recall: tuple[MemoryItem, ...], viewer_facts: tuple[MemoryItem, ...], new_memories: tuple[MemoryItem, ...], game_state: str | None, notes: tuple[str, ...], now_local: str)\nclass PromptBuilder: __init__(self, character: CharacterConfig, persona_text: str, tools: ToolRegistry, *, budgets: Mapping[str, int], estimate: Callable[[str], int]); render_epoch(self, prefix: PrefixMemory, slot: int) -> PromptEpoch; build(self, epoch: PromptEpoch, history: Sequence[Turn], ctx: TurnContext, *, purpose: SlotRole = 'speak') -> ChatRequest; compact_user(self, ctx: TurnContext) -> str; render_history(self, history: Sequence[Turn]) -> list[Mapping[str, Any]]",
+  "depends_on": [
+   "contracts.domain",
+   "text.normalize"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Prefix byte-stability: for 20 simulated turns in one epoch, prompt N+1 shares a byte-identical prefix with prompt N through history entry N−1",
+   "Chat is rendered inside <chat untrusted=\"true\"> with quoting, a 300-char cap and role tokens stripped; content is always a string",
+   "The tail stays within 250 tokens (voice) and 450 (chat); if history exceeds budget, needs-compaction is signalled and nothing is silently dropped"
+  ],
+  "implementation_notes": "The fixed ack 'รับทราบค่ะ' is messages[2]. Tools come from ToolRegistry.specs (static). Assistant history text is whatever History supplies (frozen at first render). The tail includes the opener-repetition note when flagged."
+ },
+ {
+  "id": "brain.reply",
+  "path": "src/aivtube/brain/reply.py",
+  "milestone": "M1",
+  "purpose": "Streaming reply pipeline: LLM deltas → tags → chunker → output gate → normaliser → segments. Also tool-call collection and the Filtered. path.",
+  "public_api": "@dataclass(frozen=True) class ReplyResult(emitted_text: str, segments: int, tool_calls: tuple[ToolCall, ...], filtered: bool, done: Done | None, stalled: bool, provider_failed: bool)\nclass ReplyPipeline: __init__(self, *, speech: SpeechOutput, gate: SafetyGate, bus: EventBus, clock: Clock, trace: TurnTraceRecorder, known_emotions: frozenset[str], stall_ms: int = 500, prev_tail_chars: int = 40, normalizer: Callable[[str], str] = normalize_cloud); async run(self, *, character: str, utt_id: str, turn_id: str, events: AsyncIterator[LLMEvent]) -> ReplyResult",
+  "depends_on": [
+   "contracts.domain",
+   "contracts.io",
+   "text.chunker",
+   "text.normalize",
+   "safety",
+   "infra"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "FakeLLM streaming split Thai combining marks: segments are well-formed and the first segment is sent before the stream ends (structural)",
+   "A blocked chunk: the iterator is aclosed, speech.stop(after_segment) then play_canned('filtered'), filtered=True, the blocked text is absent from the result, and a Filtered event is published",
+   "A 500 ms stall triggers stall_flush; an inter-token stall of 3 s ends the reply with stalled=True",
+   "Backpressure (segment() returns False) pauses consumption without dropping text"
+  ],
+  "implementation_notes": "Rebuilds the chunker config from speech.constraints(character) per utterance. Emotion goes only on the first segment after it changes. The iterator is closed in finally so the server cancels generation. Emits LatencyMark for first_chunk and filter_done."
+ },
+ {
+  "id": "brain.tool_flow",
+  "path": "src/aivtube/brain/tool_flow.py",
+  "milestone": "M1",
+  "purpose": "Executes accumulated tool calls in order, builds call-ordered tool messages, and decides whether a follow-up completion is needed.",
+  "public_api": "class ToolFlow: __init__(self, registry: ToolRegistry, *, max_rounds: int = 2); async run(self, calls: Sequence[ToolCall], ctx: ToolContext) -> list[tuple[ToolCall, ToolResult]]; needs_follow_up(self, results: Sequence[tuple[ToolCall, ToolResult]], spoke: bool) -> bool; tool_messages(self, assistant_message: Mapping[str, Any], results: Sequence[tuple[ToolCall, ToolResult]], *, keep_extra: bool) -> list[Mapping[str, Any]]",
+  "depends_on": [
+   "contracts.domain",
+   "tools"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Results are kept in call order (Typhoon has no tool_call_id)",
+   "A tool-only reply (no speech) triggers exactly one follow-up; a follow_up tool triggers one; never more than max_rounds",
+   "keep_extra=False strips extra_content"
+  ],
+  "implementation_notes": "Side-effect tools never retry. Execution happens after the stream ends so it never blocks speech already queued."
+ },
+ {
+  "id": "brain.history",
+  "path": "src/aivtube/brain/history.py",
+  "milestone": "M1",
+  "purpose": "In-memory conversation history per epoch: text frozen at first render, heard-text accounting and compaction triggers.",
+  "public_api": "class History: __init__(self, memory: MemoryStore, *, budget_tokens: int, estimate: Callable[[str], int]); async load(self, epoch: int) -> None; turns(self) -> list[Turn]; async append_user(self, compact_text: str, stimulus: Stimulus) -> int; async append_assistant(self, *, turn_ref: str, emitted: str, heard: str | None, interrupted: bool, filtered: bool, provider: str | None, tool_calls: str | None, provider_extra: str | None) -> int; async append_tool(self, content: str, turn_ref: str) -> int; async append_note(self, text: str) -> int; freeze(self, turn_id: int) -> None; pending_correction(self) -> str | None; needs_compaction(self) -> bool; async rebase(self, epoch: int, upto_turn_id: int) -> None",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "An interrupted turn is rendered as heard + '…' + ' [ถูกขัดจังหวะ]'; a filtered one as heard + ' [Filtered.]'",
+   "After freeze, a later heard_text change does not alter the rendered text; it produces a correction note for the next tail",
+   "needs_compaction becomes true above the budget"
+  ],
+  "implementation_notes": "Rendering once keeps the llama.cpp prefix stable. heard_text is still stored in SQLite for audit."
+ },
+ {
+  "id": "brain.background",
+  "path": "src/aivtube/brain/background.py",
+  "milestone": "M1",
+  "purpose": "Background LLM jobs on the background slot (compaction, episode summary), the epoch flip onto the inactive speak slot, and slot save/restore.",
+  "public_api": "class BackgroundJobs: __init__(self, *, character: str, router: LLMRouter, memory: MemoryStore, ops: OpsDb, prompt: PromptBuilder, history: History, servers: LocalServerManager | None, clock: Clock, busy: Callable[[], bool]); async run(self) -> None; request_epoch_rebuild(self, reason: str) -> None; current_epoch(self) -> PromptEpoch; async restore_or_prewarm(self) -> None; async end_session(self) -> None; cancel_active(self) -> None",
+  "depends_on": [
+   "contracts.domain",
+   "brain.prompt",
+   "brain.history",
+   "memory",
+   "llm.llamacpp"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "The epoch flip happens only after the prewarm on the inactive slot succeeds; a decision starting mid-prewarm cancels it and keeps the old epoch",
+   "Jobs run only while not DECIDING; an episode job queued while the LLM is down runs at the next start",
+   "restore_slot is used when <char>-<hash>.bin exists; otherwise the prefix is prewarmed with max_tokens=1"
+  ],
+  "implementation_notes": "The compaction prompt uses response_schema {summary: string} on the background slot. Speak slots are [0, 1] and alternate. Always save_slot after a flip."
+ },
+ {
+  "id": "brain.idle",
+  "path": "src/aivtube/brain/idle.py",
+  "milestone": "M1",
+  "purpose": "Idle timer: jitter, backoff, suppression and idle stimuli that avoid repeating recent topics.",
+  "public_api": "class IdleScheduler: __init__(self, clock: Clock, *, after_s: float = 25.0, jitter_s: float = 5.0, max_s: float = 120.0, rng: random.Random | None = None); on_playback_end(self, t: float) -> None; on_activity(self, t: float) -> None; on_chat_activity(self, t: float) -> None; deadline(self) -> float | None; make_stimulus(self, character: str, recent_topics: Sequence[str] = ()) -> Stimulus",
+  "depends_on": [
+   "contracts"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "FakeClock: the deadline falls in 25 ± 5 s after playback ends; activity cancels it; chat activity doubles the interval up to 120 s",
+   "The stimulus has rank IDLE and includes the last 5 topics"
+  ],
+  "implementation_notes": "Idle turns are written to history. M2 adds precomputation of the idle line 6 s before the deadline."
+ },
+ {
+  "id": "brain.loop",
+  "path": "src/aivtube/brain/{loop,decision,state}.py",
+  "milestone": "M1",
+  "purpose": "The serial Brain: DecisionSlot, the state machine, the _decide sequence, preemption wiring, operator fast paths and the watchdog.",
+  "public_api": "BrainState = Literal['booting','pre_show','idle','deciding','speaking','paused']\n@dataclass(frozen=True) class DecisionOutcome(turn_id: str, status: Literal['ok','aborted','failed'], reason: str | None, result: 'DecisionResult | None')\nclass DecisionSlot: __init__(self, tasks: TaskSupervisor); async run(self, turn_id: str, coro: Coroutine[Any, Any, 'DecisionResult']) -> DecisionOutcome; cancel(self, reason: str) -> bool; busy: bool\n@dataclass BrainDeps(character: CharacterConfig, clock: Clock, bus: EventBus, tasks: TaskSupervisor, arbiter: Arbiter, prompt: PromptBuilder, router: LLMRouter, reply: ReplyPipeline, tool_flow: ToolFlow, registry: ToolRegistry, history: History, background: BackgroundJobs, memory: MemoryStore, speech: SpeechOutput, safety: SafetyGate, idle: IdleScheduler, avatar: AvatarDriver | None, trace: TurnTraceRecorder, cfg: Mapping[str, Any])\nclass Brain: __init__(self, deps: BrainDeps); submit(self, s: Stimulus) -> None; async run(self) -> None; async control(self, cmd: OpCommand) -> OpResult; snapshot(self) -> BrainSnapshot; user_speaking(self) -> bool; state: BrainState",
+  "depends_on": [
+   "brain.arbiter",
+   "brain.preempt",
+   "brain.prompt",
+   "brain.reply",
+   "brain.tool_flow",
+   "brain.history",
+   "brain.background",
+   "brain.idle",
+   "contracts.domain",
+   "contracts.io",
+   "infra"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Chat arriving mid-decision does not change the current decision and is merged into the next one",
+   "DecisionSlot: cancelling the Brain task cancels the child and propagates; a cancelled child returns aborted and does not raise; at most one decision in flight (asserted by an instrumented FakeLLM)",
+   "FREEZE: the LLM is cancelled and speech.stop(now) is sent within 150 ms (FakeClock); nothing starts until RESUME",
+   "The 30 s watchdog aborts a hung decision and dumps the flight recorder; after a CRITICAL cut it waits ≤150 ms for UtteranceDone before building the next prompt"
+  ],
+  "implementation_notes": "Follows ARCHITECTURE.md §4.1 exactly. Every create_task goes through tasks.track. Subscribes to vad.start/end for user_speaking (20 s watchdog), and to Segment*/UtteranceDone to track audibility. Publishes StateChanged and forwards state to the avatar driver. PRE_SHOW accepts only operator and voice input."
+ },
+ {
+  "id": "panel",
+  "path": "src/aivtube/panel/",
+  "milestone": "M1",
+  "purpose": "Operator control panel and OBS overlays: token-protected aiohttp HTTP+WS on 127.0.0.1:8770, a static single-page app with no build step, generic event ingest and hotkeys.",
+  "public_api": "class CoreControl(ControlSurface): __init__(self, brains: Mapping[str, Brain], *, router: LLMRouter, registry: ToolRegistry, speech: SpeechOutput, memory_by_char: Mapping[str, MemoryStore], safety: SafetyGate, ops: OpsDb, bus: EventBus, clock: Clock, restart: Callable[[str], Awaitable[None]])\nclass PanelServer: __init__(self, host: str, port: int, token: str, control: ControlSurface, bus: EventBus, static_dir: Path, *, emergency_url: str, emergency_token: str, ingest: Callable[[ChatMessage], None]); async run(self) -> None\n# HTTP: GET / (SPA); GET /api/ping; GET /api/state; POST /api/cmd {kind,args,character}; POST /api/mic {mode|ptt}; GET /hotkey/<name>?token=; POST /api/event {user,amount,currency,text}; GET /api/traces?n=; GET /api/audit?since=; GET/PATCH /api/memory[/{id}]; WS /ws; GET /overlay/captions?character=; GET /overlay/status",
+  "depends_on": [
+   "contracts.domain",
+   "brain.loop",
+   "infra",
+   "memory"
+  ],
+  "external_deps": [
+   "aiohttp>=3.14,<4"
+  ],
+  "acceptance_tests": [
+   "Requests without a token get 401; bad Origin is rejected; the server binds 127.0.0.1 only",
+   "FREEZE via /api/cmd reaches speech.stop within 150 ms in the sim; the SPA falls back to the launcher's /hardkill when /api/ping times out after 300 ms",
+   "/api/event creates a SUPPORT stimulus; the captions overlay shows segment captions at their audible time and 'Filtered.'",
+   "Memory approve/quarantine/edit round-trips; every command is written to op_audit"
+  ],
+  "implementation_notes": "Vanilla JS, dockable in OBS as a custom dock. The WS mirrors bus events (lip tracks excluded) at ≤20 Hz per type. The waterfall shows the last 20 TurnTraces with p50/p95 badges; cache-ratio and opener-repetition alarms."
+ },
+ {
+  "id": "console",
+  "path": "src/aivtube/console/textmode.py",
+  "milestone": "M1",
+  "purpose": "Text console mode: keyboard input stands in for the streamer's voice, chat and operator; output is printed (optionally also spoken).",
+  "public_api": "class TextConsole: __init__(self, *, submit_voice: Callable[[str], None], ingest_chat: Callable[[ChatMessage], None], control: ControlSurface, out: TextIO, clock: Clock); async run(self) -> None\n# commands: <line> | /chat name: text | /bits name n | /sub name months | /op freeze|resume|skip|say <t>|direct <t> | /mem | /state | /quit",
+  "depends_on": [
+   "contracts.domain",
+   "panel"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "`aivtube run --text --fake-llm` answers a typed line end-to-end on Linux with no audio devices",
+   "/op freeze stops output"
+  ],
+  "implementation_notes": "Reads stdin through a thread and posts to the loop. A typed line becomes a UserTranscript event (engine='console')."
+ },
+ {
+  "id": "app",
+  "path": "src/aivtube/app/{core_main,runtime}.py",
+  "milestone": "M1",
+  "purpose": "Composition root for the core process: builds every service from config and the plugin registry, wires CharacterRuntime(s), and handles readiness gating and graceful shutdown.",
+  "public_api": "@dataclass class SharedServices(clock: Clock, bus: EventBus, tasks: TaskSupervisor, router: LLMRouter, ops: OpsDb, ipc: IpcServer | None, speech: SpeechOutput, safety: SafetyGate, registry: PluginRegistry, trace: TurnTraceRecorder, flight: FlightRecorder, metrics: MetricsRegistry)\n@dataclass class CharacterRuntime(cfg: CharacterConfig, brain: Brain, intake: Intake, memory: MemoryStore, window: ChatWindow, avatar: AvatarDriver | None, background: BackgroundJobs)\ndef build_character(app_cfg: AppConfig, char_cfg: CharacterConfig, shared: SharedServices) -> CharacterRuntime\nclass CoreApp: __init__(self, cfg: AppConfig, *, fakes: bool = False, text_mode: bool = False); async run(self) -> int\ndef core_main(argv: list[str] | None = None) -> int",
+  "depends_on": [
+   "config",
+   "infra",
+   "ipc",
+   "speech.output",
+   "llm",
+   "llm.llamacpp",
+   "avatar",
+   "chat.window",
+   "chat.twitch_irc",
+   "chat.youtube_poll",
+   "memory",
+   "safety",
+   "tools",
+   "brain.intake",
+   "brain.loop",
+   "panel",
+   "console"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "With profile ci (fakes) it starts and reaches PRE_SHOW; Go Live enables chat and idle",
+   "Readiness: assert_tool_caps failure leaves the LLM red with a hint; the core keeps running in text-only degraded mode",
+   "Graceful shutdown follows the §2.9 order",
+   "Plugin registry: built-ins register through the aivtube.plugins entry point"
+  ],
+  "implementation_notes": "Registers builtin factories in aivtube/plugins.py. Cloud providers are constructed only with consent. Chat adapters, VTS and IPC run under TaskSupervisor with restart policies; the brain loop is critical."
+ },
+ {
+  "id": "ops.doctor",
+  "path": "src/aivtube/ops/doctor.py",
+  "milestone": "M1",
+  "purpose": "Preflight and diagnostics with Thai/English fix hints.",
+  "public_api": "@dataclass(frozen=True) class Check(name: str, ok: bool, level: Literal['info','warn','error'], detail: str, hint_en: str, hint_th: str)\ndef run_doctor(cfg: AppConfig, *, live: bool = True) -> list[Check]\ndef format_report(checks: Sequence[Check]) -> str",
+  "depends_on": [
+   "config",
+   "voice.audio_io",
+   "llm.llamacpp",
+   "memory"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "Detects ports in use (including 8001–8009 misuse), missing or corrupt models, SQLite without FTS5 trigram, Session 0, and a missing .env key for enabled backends",
+   "Lists WASAPI devices by name; flags non-commercial voices when monetised=true"
+  ],
+  "implementation_notes": "Live checks: llama /props tool caps, free VRAM via nvidia-smi, VTS discovery, a quick edge/Azure TTFA sample. Each check is independent and never throws."
+ },
+ {
+  "id": "ops.bench",
+  "path": "src/aivtube/ops/bench.py",
+  "milestone": "M1",
+  "purpose": "On-PC benchmarks behind the M0 gates (S1, S2, S4) and end-to-end replay.",
+  "public_api": "async def bench_tts(cfg: AppConfig, *, n: int = 40, novel: bool = True) -> dict[str, Any]\ndef bench_llm(cfg: AppConfig, *, tune: bool = False) -> dict[str, Any]\nasync def bench_stt(cfg: AppConfig) -> dict[str, Any]\ndef bench_audio(cfg: AppConfig, *, soak_s: int = 600) -> dict[str, Any]\nasync def bench_e2e(cfg: AppConfig, *, clips: Path, profile: str) -> dict[str, Any]\ndef write_recommendations(root: Path, results: Mapping[str, Any]) -> Path",
+  "depends_on": [
+   "config",
+   "voice.tts",
+   "voice.stt",
+   "voice.audio_io",
+   "llm"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "bench_tts reports p50/p95 TTFA and failure rate and applies the G1 rule",
+   "bench_llm --tune runs llama-bench over -ncmoe 28..44 and -t 6/8/12 and writes pinned_n_cpu_moe to user.toml"
+  ],
+  "implementation_notes": "Port ttfb4.py (novel vs repeat text) from the TTS brief. bench_llm shells out to llama-bench.exe from vendor/ and then measures warm TTFT with a 300-token uncached suffix."
+ },
+ {
+  "id": "ops.setup",
+  "path": "src/aivtube/ops/{setup_wizard,models}.py",
+  "milestone": "M1",
+  "purpose": "Idempotent, resumable setup wizard and model manifest management.",
+  "public_api": "@dataclass(frozen=True) class ModelEntry(name: str, url: str, sha256: str, size: int, licence: str, required_by: tuple[str, ...], dest: str)\nclass ModelManifest: @classmethod load(cls, path: Path) -> 'ModelManifest'; pull(self, names: Sequence[str], *, background: bool = False) -> None; verify(self) -> dict[str, bool]\ndef run_setup(root: Path, *, only: Sequence[str] | None = None, non_interactive: bool = False) -> int",
+  "depends_on": [
+   "config",
+   "ops.doctor",
+   "ops.bench"
+  ],
+  "external_deps": [
+   "huggingface_hub (optional for hf:// urls)"
+  ],
+  "acceptance_tests": [
+   "Re-running after a partial download resumes it and verifies the sha256",
+   "Selects the cuda-13.4 zips for driver ≥580, else 12.4",
+   "Writes user.toml with profile=light until the 30B verifies; asks for cloud consent (default no)"
+  ],
+  "implementation_notes": "Steps as in ARCHITECTURE.md §9. Pre-synthesises the cached phrases through the voice worker's TTS path. Needs no admin rights."
+ },
+ {
+  "id": "ops.report",
+  "path": "src/aivtube/ops/{report,db}.py",
+  "milestone": "M1",
+  "purpose": "Bug-report bundle and database backup/restore commands.",
+  "public_api": "def build_report(root: Path, out: Path | None = None, *, days: int = 2) -> Path\ndef db_backup(root: Path) -> list[Path]\ndef db_restore(root: Path, backup: Path) -> None",
+  "depends_on": [
+   "config",
+   "memory",
+   "infra"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "The zip contains logs, redacted config, doctor output, versions and the flight dump, and no secrets (checked with a secret scan)"
+  ],
+  "implementation_notes": "Reuses the logging redaction filter."
+ },
+ {
+  "id": "cli",
+  "path": "src/aivtube/cli.py",
+  "milestone": "M1",
+  "purpose": "Single CLI entry point dispatching to launcher, core, voice, ops, sim and config commands.",
+  "public_api": "def main(argv: list[str] | None = None) -> int\n# subcommands: run [--profile P] [--text [--speak]] [--safe] [--fake-llm]; _core; _voice; setup; doctor; bench {tts,llm,stt,audio,e2e} [--tune]; report; models {pull,verify}; sim <scenario>; replay <dump>; config {show,migrate}; db {backup,restore}; llm serve; debug wedge-core",
+  "depends_on": [
+   "launcher",
+   "app",
+   "voice.worker",
+   "ops.doctor",
+   "ops.bench",
+   "ops.setup",
+   "ops.report",
+   "testing.sim",
+   "config"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "`aivtube --help` lists all subcommands; run --safe works with no network, GPU or audio"
+  ],
+  "implementation_notes": "Uses argparse (stdlib). The run command execs the launcher, which in turn spawns `_core` and `_voice`."
+ },
+ {
+  "id": "testing.sim",
+  "path": "src/aivtube/testing/sim/",
+  "milestone": "M1",
+  "purpose": "Simulated end-to-end harness: YAML scenarios drive the real core and voice worker against fakes over localhost, with golden event traces, structural latency invariants and replay.",
+  "public_api": "@dataclass class Scenario(name: str, llm: Mapping[str, Any], tts: Mapping[str, Any], timeline: list[Mapping[str, Any]], asserts: list[Mapping[str, Any]], clock: Literal['fake','real'] = 'real')\n@classmethod Scenario.load(path: Path) -> Scenario\n@dataclass class SimResult(ok: bool, events: list[Mapping[str, Any]], failures: list[str], overhead_ms_p95: float)\nclass SimHarness: __init__(self, scenario: Scenario, *, real_voice_worker: bool = True, tmp: Path); async run(self) -> SimResult\nasync def replay(dump: Path) -> SimResult",
+  "depends_on": [
+   "app",
+   "voice.worker",
+   "testing.fakes"
+  ],
+  "external_deps": [
+   "pyyaml? no — scenarios are TOML or JSON-compatible YAML subset parsed via json; use tomllib for .toml scenarios"
+  ],
+  "acceptance_tests": [
+   "Scenarios pass: voice_turn, chat_pick, merge_mid_decision, priority_low/medium/high/critical, barge_in, long_monologue, read_aloud_dedupe, ptt_deafen, filtered, freeze, hardkill_wedged_core, llm_kill_fallback, mid_utterance_death, promote_rollback, vts_restart, irc_drop, core_restart, memory_cross_session, memory_quarantine, epoch_flip",
+   "Structural invariants hold: TTS for chunk 1 is requested before the LLM finishes; chunk 2 is synthesised before chunk 1 ends; pipeline overhead p95 ≤ 30 ms with zero-delay fakes"
+  ],
+  "implementation_notes": "Scenario files are TOML (stdlib tomllib) to avoid a YAML dependency; the ARCHITECTURE refers to them as scenario files. Timeline items: voice (speech_start/final/partial), chat, event, op, fault (kill_voice, kill_llm, drop_vts, drop_irc, wedge_core)."
+ },
+ {
+  "id": "brain.latency",
+  "path": "src/aivtube/brain/latency.py",
+  "milestone": "M2",
+  "purpose": "The latency pack: speculative endpointing with gated playback, KV prefill at speech start, pre-think pipelining and idle-line precomputation, all going through the single DecisionSlot.",
+  "public_api": "class Speculator: __init__(self, brain: Brain, *, silence_ms: int = 300, merge_window_s: float = 1.0); on_speculative(self, text: str, t: float) -> None; on_speech_started(self, t: float) -> None; on_final(self, ev: UserTranscript) -> None\nclass Prefiller: __init__(self, router: LLMRouter, prompt: PromptBuilder, enabled: bool); async on_speech_start(self, ctx: TurnContext) -> None\nclass PreThinker: __init__(self, brain: Brain, *, min_remaining_s: float = 0.8, breath_s: float = 0.3); maybe_start(self) -> None\nclass IdlePrecompute: __init__(self, brain: Brain, lead_s: float = 6.0)",
+  "depends_on": [
+   "brain.loop",
+   "llm",
+   "voice.endpointer"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "A speculation hit makes 1 LLM request and the LLM request precedes the commit; a miss cancels and restarts; resumed speech cancels",
+   "Speculative synthesis never uses a quota-limited backend",
+   "Pre-think is invalidated when the prior turn is cut or filtered",
+   "Particle endpointing is enabled only when vad.particle_endpointing=true and adapts thresholds on the false-endpoint rate"
+  ],
+  "implementation_notes": "The voice worker sends stt.speculative at silence_ms and reuses the transcript at commit. Gates use SpeechOutput.begin(gate_open=False) and open_gate. Prefill is used only if spike S8 passes."
+ },
+ {
+  "id": "safety.classifier",
+  "path": "src/aivtube/safety/classifier.py",
+  "milestone": "M2",
+  "purpose": "Tier-1 Thai safety classifier: typhoon2-safety-preview exported to ONNX int8 and run with onnxruntime in the core's guard thread.",
+  "public_api": "class TyphoonGuardOnnx(Classifier): __init__(self, model_dir: Path, *, threads: int = 2, max_length: int = 128); async score(self, texts: Sequence[str], direction: Direction) -> list[float]",
+  "depends_on": [
+   "contracts.domain",
+   "safety"
+  ],
+  "external_deps": [
+   "onnxruntime==1.30.0",
+   "tokenizers>=0.21,<1"
+  ],
+  "acceptance_tests": [
+   "The ONNX output matches the transformers reference within 1e-3 on 20 samples (export job)",
+   "Batch of 8 on CPU under 150 ms on CI hardware",
+   "The gate uses thresholds 0.8 (block) and 0.5 (review); a timeout fails open except for fail-closed categories"
+  ],
+  "implementation_notes": "Export with tools/export_guard_onnx.py in the models-export CI job. There is no torch at runtime. Only selected candidates, names, arguments and output chunks are scored."
+ },
+ {
+  "id": "brain.review",
+  "path": "src/aivtube/brain/review.py",
+  "milestone": "M2",
+  "purpose": "Review mode: each utterance's text waits at the gate until the operator approves it in the panel.",
+  "public_api": "class ReviewGate: __init__(self, speech: SpeechOutput, bus: EventBus, *, timeout_s: float = 20.0); async hold(self, utt_id: str, text_preview: str) -> bool; approve(self, utt_id: str) -> None; deny(self, utt_id: str) -> None",
+  "depends_on": [
+   "brain.loop",
+   "panel"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "No audio before approval; a deny drops the utterance and records it as not heard"
+  ],
+  "implementation_notes": "Uses the M1 gate mechanism (begin(gate_open=False) and open_gate)."
+ },
+ {
+  "id": "workers.whisper",
+  "path": "workers/whisper/",
+  "milestone": "M2",
+  "purpose": "Optional accuracy-tier STT: typhoon-whisper-turbo CT2 in its own CUDA-12 process behind an HTTP recognizer.",
+  "public_api": "HTTP POST /transcribe (wav16k) -> {text, latency_ms}; GET /health\nclass WhisperWorkerClient(SpeechRecognizer): __init__(self, url: str = 'http://127.0.0.1:8091')",
+  "depends_on": [
+   "voice.stt"
+  ],
+  "external_deps": [
+   "faster-whisper==1.2.1",
+   "ctranslate2==4.8.2",
+   "nvidia-cublas-cu12==12.9.2.10",
+   "nvidia-cuda-runtime-cu12==12.9.*",
+   "nvidia-cudnn-cu12==9.*"
+  ],
+  "acceptance_tests": [
+   "Golden clips keep 'Minecraft', 'iPhone' and 'ไพลิน' in Latin script (nightly with GPU optional)"
+  ],
+  "implementation_notes": "Prepend the nvidia/*/bin directories to PATH before building the model, as in the STT brief. Settings: beam_size=1, language='th', no initial_prompt or hotwords, vad_filter=False, drop audio under 0.3 s. VRAM budget ~1.5–2.5 GB, so use it only when the LLM profile leaves room."
+ },
+ {
+  "id": "chat.twitch_auth",
+  "path": "src/aivtube/chat/twitch_auth.py",
+  "milestone": "M3",
+  "purpose": "Twitch Device Code Flow (public client), token validation and refresh, with atomic storage.",
+  "public_api": "class TwitchTokenStore: __init__(self, path: Path); load() -> dict | None; save_atomic(tokens: Mapping[str, Any]) -> None\nclass TwitchAuth: __init__(self, client_id: str, scopes: Sequence[str], store: TwitchTokenStore, http: Any); async device_flow(self, on_code: Callable[[str, str], None]) -> Mapping[str, Any]; async validate(self) -> Mapping[str, Any] | None; async refresh(self) -> str; async access_token(self) -> str",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "httpx2"
+  ],
+  "acceptance_tests": [
+   "authorization_pending polling honours the interval; a refresh writes via temp file plus os.replace under a lock; a 401 triggers a refresh; validation runs hourly"
+  ],
+  "implementation_notes": "Scopes: user:read:chat user:write:chat moderator:manage:banned_users channel:manage:polls channel:manage:broadcast (plus channel:read:redemptions bits:read). Refresh tokens are single-use, so writes must be atomic."
+ },
+ {
+  "id": "chat.twitch_eventsub_helix",
+  "path": "src/aivtube/chat/{twitch_eventsub,helix}.py",
+  "milestone": "M3",
+  "purpose": "EventSub WebSocket chat and notifications source, plus Helix ChannelActions (send, timeout, poll, title).",
+  "public_api": "class TwitchEventSub(ChatSource): __init__(self, auth: TwitchAuth, broadcaster_id: str, user_id: str, *, clock: Clock, connect=websockets.connect)\nclass TwitchHelixActions(ChannelActions): __init__(self, auth: TwitchAuth, client_id: str, broadcaster_id: str, moderator_id: str, http: Any, *, send_bucket: tuple[int, float] = (20, 30.0))",
+  "depends_on": [
+   "chat.twitch_auth",
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "websockets>=17.1,<18",
+   "httpx2"
+  ],
+  "acceptance_tests": [
+   "Subscribes within 10 s of the welcome message; a session_reconnect does not resubscribe; a fresh connect does",
+   "Timeouts are clamped to 1..600 and never omit duration (omitting it would be a permanent ban); a poll 403 hides the capability"
+  ],
+  "implementation_notes": "Subscribe to channel.chat.message and channel.chat.notification v1 (and redemption.add). Dedupe on message_id. Drop shared-chat messages from other channels."
+ },
+ {
+  "id": "chat.youtube_live",
+  "path": "src/aivtube/chat/youtube_grpc.py",
+  "milestone": "M3",
+  "purpose": "YouTube liveChatMessages.streamList over gRPC, plus owner-OAuth actions (send, poll, ban) under quota limits.",
+  "public_api": "class YouTubeStreamList(ChatSource): __init__(self, api_key: str, live_chat_id: str, *, clock: Clock)\nclass YouTubeActions(ChannelActions): __init__(self, credentials: Any, live_chat_id: str, video_id: str, *, min_interval_s: float = 120.0)",
+  "depends_on": [
+   "chat.youtube_poll",
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "grpcio==1.84.0",
+   "protobuf>=5",
+   "google-auth-oauthlib==1.4.1 (actions)"
+  ],
+  "acceptance_tests": [
+   "Resumes with the last next_page_token; skips the backlog; falls back to list polling on RESOURCE_EXHAUSTED"
+  ],
+  "implementation_notes": "Stubs generated from stream_list.proto are committed with relative imports. Actions cost 50 units each; cap at about 1 per 2 minutes. The consent screen must be In production, or tokens expire after 7 days."
+ },
+ {
+  "id": "chat.alerts",
+  "path": "src/aivtube/chat/alerts.py",
+  "milestone": "M3",
+  "purpose": "Adapters for third-party donation/alert services that feed the must-acknowledge queue.",
+  "public_api": "class AlertSource(ChatSource): __init__(self, provider: str, cfg: Mapping[str, Any], *, clock: Clock)",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "(to be decided by spike; not verified in research)"
+  ],
+  "acceptance_tests": [
+   "A recorded provider payload maps to a DONATION ChatMessage with amount, currency and value_usd"
+  ],
+  "implementation_notes": "The StreamElements/Streamlabs APIs were NOT verified in the research briefs. Run a spike and write an ADR before implementing. Until then, M1's POST /api/event covers the need."
+ },
+ {
+  "id": "tools.builtin",
+  "path": "src/aivtube/tools/builtin/{stream,avatar,voice,sound}.py",
+  "milestone": "M3",
+  "purpose": "The iteration-18-style tool set: stream title, polls, timeouts, spin model, talking speed, soundboard.",
+  "public_api": "class SetStreamTitle(Tool); class CreatePoll(Tool); class TimeoutUser(Tool): __init__(self, *, max_s: int = 600, max_per_10min: int = 3); class Untimeout (panel-only); class SpinModel(Tool); class SetTalkingSpeed(Tool): __init__(self, *, min_pct: int = -20, max_pct: int = 30); class PlaySound(Tool): __init__(self, sounds: Mapping[str, Path])",
+  "depends_on": [
+   "tools",
+   "chat.twitch_eventsub_helix",
+   "avatar",
+   "speech.output"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "timeout_user refuses mods, VIPs and the triggering chatter without corroboration; it is capped and undoable; its reason text is filtered",
+   "Every sound can be disabled individually (the 'pipes' lesson); title and poll text are filtered; the poll tool is hidden without the capability"
+  ],
+  "implementation_notes": "The tool list is static in the prompt, so capability-missing tools return 'unavailable now'. timeout_user, create_poll and set_stream_title have requires_approval configurable (default on for the first streams)."
+ },
+ {
+  "id": "chat.tiktok",
+  "path": "src/aivtube/chat/tiktok.py",
+  "milestone": "M6",
+  "purpose": "Optional, isolated, read-only TikTok LIVE chat source.",
+  "public_api": "class TikTokSource(ChatSource): __init__(self, unique_id: str, *, clock: Clock)",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "TikTokLive==7.0.1"
+  ],
+  "acceptance_tests": [
+   "Gift streaks are counted only on the final event; exceptions never escape the adapter task"
+  ],
+  "implementation_notes": "Reverse-engineered and dependent on the Euler sign server, so it is off by default. Never send a sessionid. Licence note: AGPL §18 applies (no SaaS)."
+ },
+ {
+  "id": "games.neuro_compat",
+  "path": "src/aivtube/games/neuro_compat.py",
+  "milestone": "M4",
+  "purpose": "Server compatible with the Neuro Game SDK protocol: registry, forces, retries, timeouts, held context, speech_finished and voice decline.",
+  "public_api": "class NeuroCompatHub(GameServer): __init__(self, brain: GameBrain, *, character_id: str, display_name: str, host: str = 'localhost', port: int = 8000, result_timeout_s: float = 20.0, force_max_retries: int = 3, clock: Clock)\nasync def handler(self, ws: Any) -> None",
+  "depends_on": [
+   "contracts.domain",
+   "infra"
+  ],
+  "external_deps": [
+   "websockets>=17.1,<18",
+   "jsonschema==4.26.0",
+   "json-repair==0.63.5"
+  ],
+  "acceptance_tests": [
+   "reregister_all on connect; the startup ack has exactly the specified keys; garbage and unknown commands are silently ignored",
+   "The action data is a JSON string holding an object, omitted when there is no schema, never null; checked against the neuro-api 4.0.0 trio client",
+   "3 retries and then drop; context held during a pending result is delivered after it; stale results are discarded; the 20 s timeout counts as a failure",
+   "The /voice path gets voice/unavailable; a same-game force replaces the current one, and other games queue FIFO"
+  ],
+  "implementation_notes": "Port neuro_compat.py from the neurosdk brief, fixing its noted simplifications: activate the next queued force after a drop, and keep per-game state keyed by the `game` field. Bind localhost (v4+v6). Never add keys to server-to-client messages."
+ },
+ {
+  "id": "games.grammar",
+  "path": "src/aivtube/games/grammar.py",
+  "milestone": "M4",
+  "purpose": "Game-schema sanitiser, forced-action json_schema builder and incremental brace-depth parser for early action dispatch.",
+  "public_api": "class UnsupportedSchema(ValueError)\ndef sanitize_schema(schema: Mapping[str, Any] | None) -> dict[str, Any]\ndef forced_response_schema(actions: Sequence[GameAction]) -> dict[str, Any]\ndef tool_name(action_name: str) -> str\nclass ActionFirstParser: feed(self, delta: str) -> tuple[Mapping[str, Any] | None, str]; say_so_far: str",
+  "depends_on": [
+   "contracts.domain"
+  ],
+  "external_deps": [
+   "jsonschema==4.26.0"
+  ],
+  "acceptance_tests": [
+   "Drops $ref/$defs/allOf/oneOf/not/if-then-else/patternProperties; never mixes properties with anyOf at one level; keeps min/max only on integers; anchors patterns; raises UnsupportedSchema when it cannot convert",
+   "The parser returns the action object as soon as it closes, before `say` arrives",
+   "Tool names match ^[a-zA-Z0-9_-]{1,64}$ with a reverse map"
+  ],
+  "implementation_notes": "When UnsupportedSchema is raised, the brain uses the tools strategy with tool_choice='required'. Always validate the final object against the original schema before execute."
+ },
+ {
+  "id": "games.bridge",
+  "path": "src/aivtube/games/bridge.py",
+  "milestone": "M4",
+  "purpose": "GameBrain implementation: turns hub callbacks into stimuli and force decisions on the game slot, maps priorities, and forwards speech_finished.",
+  "public_api": "class GameBridge(GameBrain): __init__(self, runtime: CharacterRuntime, hub: GameServer, *, strategy: Literal['auto','grammar','tools'] = 'auto', game_slot: int = 3)",
+  "depends_on": [
+   "games.neuro_compat",
+   "games.grammar",
+   "brain.loop",
+   "tools"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "force→action p50 ≤ 2 s with FakeLLM; the action is dispatched before speech; the say line is gated while the streamer is speaking",
+   "A retry includes the game's failure message; retries are silent; one commentary line when retries run out",
+   "UtteranceDone becomes speech_finished broadcasts, including for filtered or muted utterances"
+  ],
+  "implementation_notes": "The static game_action tool is registered in the ToolRegistry at M4 (added once at session start, so the prefix stays stable). Available actions are rendered in the prompt tail. Ephemeral context is kept only during the force."
+ },
+ {
+  "id": "brain.floor",
+  "path": "src/aivtube/brain/floor.py",
+  "milestone": "M5",
+  "purpose": "Twin support: FloorManager, character-to-character stimuli, chat routing by name, and the anti-ping-pong limit.",
+  "public_api": "class FloorToken: character: str; release() -> None\nclass FloorManager: __init__(self, clock: Clock, *, max_exchanges: int = 4, cooldown_s: float = 30.0); async acquire(self, character: str, priority: Priority) -> FloorToken; holder(self) -> str | None; note_exchange(self, human_input: bool) -> None\nclass Stage: __init__(self, runtimes: Mapping[str, CharacterRuntime], floor: FloorManager); route_chat(self, m: ChatMessage) -> str",
+  "depends_on": [
+   "brain.loop",
+   "app"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "No overlapping audio unless configured; CRITICAL steals the floor; 4 exchanges without human input trigger the cooldown",
+   "A twin SDK hub on 8010 and a second VTS found by windowTitle; filter overlays and memory are separate per character"
+  ],
+  "implementation_notes": "The twin profile uses llama parallel=6 and ctx 40960 (speak slots 4/5). Voice identity is th-TH-AcharaNeural on Azure."
+ },
+ {
+  "id": "workers.voxcpm",
+  "path": "workers/voxcpm/",
+  "milestone": "M6",
+  "purpose": "Local TTS sidecar (VoxCPM2, Apache-2.0) in its own venv, exposed as a TTSBackend.",
+  "public_api": "HTTP POST /synth {text, voice_ref} -> chunked PCM f32 48 kHz; GET /health\nclass VoxCpmClient(TTSBackend): __init__(self, url: str = 'http://127.0.0.1:8093', *, identity: str = 'pailin_local')",
+  "depends_on": [
+   "voice.tts"
+  ],
+  "external_deps": [
+   "voxcpm==2.0.3 (own venv; torch cu12x)"
+  ],
+  "acceptance_tests": [
+   "Streams the first chunk in under 0.5 s on the 4070 (hardware test); concurrency 1"
+  ],
+  "implementation_notes": "About 8 GB of VRAM, so it pairs only with the light or cloud LLM profiles. Design the voice once, then clone it from a saved reference WAV. Its own voice identity means no mid-utterance mixing."
+ },
+ {
+  "id": "avatar.browser",
+  "path": "src/aivtube/avatar/browser/",
+  "milestone": "M6",
+  "purpose": "Fallback renderer: an OBS Browser Source page (pixi 7.4.3 + pixi-live2d-display-lipsyncpatch) fed parameters over WebSocket.",
+  "public_api": "class BrowserSink(AvatarSink): __init__(self, http_port: int = 8765, ws_port: int = 8766, *, model_url: str, param_map: Mapping[str, str])",
+  "depends_on": [
+   "avatar"
+  ],
+  "external_deps": [
+   "(JS vendored) pixi.js@7.4.3, pixi-live2d-display-lipsyncpatch@0.5.0-ls-8; Cubism Core downloaded by the user, gitignored"
+  ],
+  "acceptance_tests": [
+   "Passes avatar_sink_suite with a headless WS client"
+  ],
+  "implementation_notes": "Never commit Cubism Core. Maps VTS input names to Live2D parameter IDs. Carries the licensing caveat (Expandable Application) in docs."
+ },
+ {
+  "id": "vision",
+  "path": "src/aivtube/vision/",
+  "milestone": "M7",
+  "purpose": "Periodic screen/game captioning fed in as low-rank VISION stimuli, plus a filtered web_search tool.",
+  "public_api": "class ScreenCaptioner: __init__(self, provider: str, interval_s: float = 8.0, *, consent: bool); async run(self) -> None\nclass WebSearchTool(Tool)",
+  "depends_on": [
+   "brain.loop",
+   "tools",
+   "safety"
+  ],
+  "external_deps": [
+   "(decided at M7; cloud VLM requires consent)"
+  ],
+  "acceptance_tests": [
+   "Captions never preempt speech; search results pass the input filter"
+  ],
+  "implementation_notes": "Off the critical path. Local VLM only if VRAM allows."
+ },
+ {
+  "id": "singing",
+  "path": "src/aivtube/singing/",
+  "milestone": "M8",
+  "purpose": "Karaoke/song mode: plays pre-rendered stems, holds the floor, disables barge-in, and drives lip-sync from the vocal stem.",
+  "public_api": "class SongPlayer: __init__(self, speech: SpeechOutput, avatar: AvatarDriver, floor: FloorManager); async play(self, song_dir: Path) -> None; stop(self) -> None",
+  "depends_on": [
+   "speech.output",
+   "avatar",
+   "brain.floor"
+  ],
+  "external_deps": [],
+  "acceptance_tests": [
+   "FREEZE stops a song within 150 ms; the mouth follows the vocal stem"
+  ],
+  "implementation_notes": "Rendering happens offline; no real-time singing synthesis. Duets use two voice channels."
+ }
+]

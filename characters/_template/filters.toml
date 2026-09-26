@@ -1,0 +1,2 @@
+# Character filter overlay (allow/deny/replace), applied after the base, private and platform
+# lists. See characters/pailin/filters.toml for commented examples. Empty = base lists only.

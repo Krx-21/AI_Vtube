@@ -1,0 +1,25 @@
+# config/filters/base/slur.toml: tier-0 base list, category "slur" (ARCHITECTURE.md §7).
+# Slurs, hate terms and strong insults/profanity. Chat input: DROP. Speech, tool, memory: BLOCK.
+# Format: see README.md in this folder. token = newmm word-boundary match (Thai-safe),
+# substring = anywhere (also letter-spaced and leet), regex = Python regex on normalised text.
+# Conservative on purpose: no ambiguous everyday words (ควาย "buffalo", กะหรี่ "curry").
+category = "slur"
+
+# สัสดี is an army records office; newmm keeps it one word, the relaxed rule would not.
+allow = ["สัสดี"]
+
+token = [
+  # Thai strong insults and profanity
+  "เหี้ย", "สัส", "ไอ้สัตว์", "อีสัตว์", "ชาติหมา", "ส้นตีน", "ระยำ",
+  "อีดอก", "ดอกทอง", "อีตัว", "อีกะหรี่", "ร่าน",
+  "พ่อมึงตาย", "แม่มึงตาย",
+  # Thai hate terms (ethnicity, disability, gender identity, political slur)
+  "ไอ้ลาว", "ไอ้เขมร", "ไอ้พม่า", "ไอ้มืด", "ไอ้ปัญญาอ่อน", "ไอ้ตุ๊ด", "อีตุ๊ด", "ควายแดง",
+  # English (whole words only)
+  "shit", "bitch", "whore", "slut", "fag", "retard", "retarded", "tranny",
+  "chink", "spic", "kike", "gook", "cunt", "cunts",
+]
+
+substring = [
+  "fuck", "asshole", "dickhead", "nigger", "nigga", "faggot", "wetback",
+]

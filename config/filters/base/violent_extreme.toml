@@ -1,0 +1,13 @@
+# config/filters/base/violent_extreme.toml: tier-0 base list, category "violent_extreme"
+# (ARCHITECTURE.md §7). Threats, mass-violence and extremist slogans, and telling someone to
+# kill themselves. Chat input: DROP. Speech, tool, memory: BLOCK.
+# Plain verbs such as ฆ่า ("kill") are NOT listed: game talk (ฆ่ามอนสเตอร์, วางระเบิด in CS)
+# must pass. Format: see README.md in this folder.
+category = "violent_extreme"
+
+token = [
+  "กราดยิง", "ยิงกราด", "ระเบิดโรงเรียน", "ฆ่าล้างโคตร", "ฆ่ามึง", "ตามไปฆ่า",
+  "ไปตายซะ", "ไปฆ่าตัวตาย",
+  "kys", "kill yourself", "school shooting", "mass shooting", "shoot up the school",
+  "bomb threat", "heil hitler", "sieg heil", "white power", "gas the jews",
+]

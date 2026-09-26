@@ -1,0 +1,16 @@
+# config/filters/base/politics.toml: tier-0 base list, category "politics" (ARCHITECTURE.md §7).
+# Thai party politics. Verdict REVIEW in both directions (logged for the moderator; chat is
+# not answered), BLOCK in strict mode; safety.politics = "block" | "allow" changes it.
+# Keep out words with everyday meanings (ม็อบ "mob" in games, เสื้อแดง "a red shirt").
+# Format: see README.md in this folder.
+category = "politics"
+
+token = [
+  "การเมือง", "พรรคการเมือง", "เลือกตั้ง", "นายกรัฐมนตรี", "นายกฯ", "ส.ส.", "รัฐประหาร",
+  "เผด็จการ", "ชุมนุมทางการเมือง", "นปช", "กปปส", "คสช",
+  "ทักษิณ", "ยิ่งลักษณ์", "ประยุทธ์", "ประวิตร", "อนุทิน", "เศรษฐา", "แพทองธาร", "พิธา",
+  "ธนาธร", "พรรคเพื่อไทย", "พรรคประชาชน", "พรรคก้าวไกล", "พรรคภูมิใจไทย",
+  "พรรคพลังประชารัฐ", "พรรครวมไทยสร้างชาติ", "พรรคประชาธิปัตย์",
+  "thaksin", "prayut", "prayuth", "pheu thai", "move forward party", "military coup",
+  "coup d'etat",
+]

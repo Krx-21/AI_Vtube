@@ -1,0 +1,431 @@
+# config/defaults.toml: committed. Do not edit for your own PC; put overrides in config/user.toml.
+# Precedence (later wins): defaults < active profile < characters/<id>/character.toml
+#   < config/user.toml < env AIVTUBE__SECTION__KEY < CLI flags.
+# Secrets (API keys) live only in .env. Unknown keys are errors, so typos are caught at startup.
+# Paths are relative to the AI_Vtube folder; "{character}" expands to the character id.
+schema_version = 1
+active_profile = "stream"            # stream | light | gaming | text | offline | ci
+characters = ["pailin"]
+
+[app]
+data_dir = "data"
+models_dir = "models"
+voice_worker = true                  # false = no audio at all (text mode)
+fakes = false                        # true = fake LLM/TTS/STT (CI, `aivtube run --fake-llm`)
+auto_live = false                    # true = press Go Live automatically when the panel is green
+resume_live_after_crash = true
+session_resume_max_age_s = 21600     # resume a session younger than 6 h after a core restart
+monetised = false                    # doctor flags non-commercial voices when true
+
+[ports]                              # all bind 127.0.0.1; never 8001-8009 (VTube Studio)
+panel = 8770                         # control panel + OBS overlays
+bus = 8771                           # core <-> voice worker IPC
+emergency = 8779                     # launcher hard-kill endpoint
+neuro_sdk = 8000                     # M4; the twin sets games.port = 8010 in its character.toml
+browser_renderer_http = 8765         # M6 (reserved)
+browser_renderer_ws = 8766           # M6 (reserved)
+
+[privacy]
+cloud_llm_consent = false            # Typhoon API may train on inputs; Gemini free tier is used by Google
+cloud_stt_consent = false            # cloud providers/backends stay disabled until these are true
+log_chat_text = true
+retention_days = 30
+
+[audio]
+output_device = ""                   # "" = WASAPI default endpoint; else a case-insensitive name substring
+input_device = ""                    # never a device number: numbers change when devices are plugged in
+mirror_output_device = ""            # e.g. "CABLE Input" (isolated OBS track; never the AEC reference)
+headphones = true
+echo_mode = "auto"                   # auto | aec | energy_dtd | half_duplex | none
+samplerate = 48000
+block_ms = 10
+output_latency_s = 0.04              # 0.04-0.06, set by spike S4
+
+[mic]
+mode = "open"                        # open | ptt | deafened
+addressing = "always"                # always | name_or_question
+followup_window_s = 8.0
+read_aloud_dedupe = true
+read_aloud_ratio = 0.75
+read_aloud_window_s = 60.0
+read_aloud_min_chars = 6
+
+[vad]
+backend = "silero_ort"               # silero_ort | silero_sherpa | energy
+model = "models/vad/silero_vad.onnx"
+model_sha256 = "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"
+energy_threshold_dbfs = -42.0        # backend = "energy" only
+threshold = 0.5
+neg_threshold = 0.35
+barge_threshold = 0.6                # 0.65-0.7 with speakers + AEC
+min_speech_ms = 250
+end_silence_ms = 600
+preroll_ms = 300
+max_segment_s = 15.0                 # forced split -> partial decode; the turn continues
+max_turn_s = 60.0
+particle_endpointing = false         # M2, only after S7 calibration
+final_particle_ms = 420
+continuation_ms = 900
+speculative_endpoint_ms = 0          # M2: 300
+
+[barge_in]
+policy = "interrupt"                 # interrupt | duck_only | off
+duck_db = -12.0
+confirm_min_ms = 500
+confirm_min_chars = 3
+false_timeout_s = 2.0
+cut_fade_ms = 60
+aec_warmup_s = 3.0
+boundary_ignore_s = 1.0
+quick_decode_s = 0.8                 # the confirm decode covers the last 0.8 s
+backchannels = ["อืม", "อือ", "อ๋อ", "เออ", "ครับ", "ค่ะ", "คะ", "จ้ะ", "จ้า", "ฮะ", "โอเค", "เหรอ", "หรอ", "555", "ฮ่า", "ฮ่าๆ"]
+
+[stt]
+chain = ["typhoon_rt", "pythaiasr", "typhoon_api"]   # typhoon_api (cloud) is skipped unless privacy.cloud_stt_consent
+timeout_s = 3.0
+
+[stt.backends.typhoon_rt]
+kind = "sherpa_nemo_transducer"
+model_dir = "models/stt/typhoon-asr-rt-int8"
+num_threads = 2
+
+[stt.backends.pythaiasr]
+kind = "pythaiasr"
+
+[stt.backends.typhoon_api]
+kind = "openai_audio"
+cloud = true
+base_url = "https://api.opentyphoon.ai/v1"
+model = "typhoon-asr-realtime"
+api_key_env = "TYPHOON_API_KEY"
+
+[stt.backends.whisper_gpu]           # M2 optional accuracy tier (separate CUDA-12 process)
+kind = "faster_whisper_worker"
+enabled = false
+url = "http://127.0.0.1:8091"
+model_dir = "models/stt/typhoon-whisper-turbo-ct2"
+compute_type = "int8_float16"
+
+[llm]
+chain = ["local-30b", "local-4b", "typhoon-api", "gemini"]   # cloud entries skipped unless privacy.cloud_llm_consent
+canned_line = "เอ๊ะ สมองไพลินค้างแป๊บนึงนะ"
+max_reply_tokens = 256
+temperature = 0.6
+strict_temperature = 0.4             # auto-strict mode
+hedge_after_ms = 0                   # 0 = never; >0 only acts on cloud providers, which need consent
+auto_return_after_s = 60
+connect_timeout_s = 2.0
+stall_timeout_s = 3.0                # inter-token stall ends the utterance with "…"
+breaker_max_s = 60.0                 # breaker backoff min(60, 2^fails) s
+auto_rollback = { window_s = 600, max_failures = 3, ttft_p95_factor = 2.0 }
+
+[llm.slots]
+speak = [0, 1]                       # double-buffered epoch slots
+background = 2
+game = 3                             # M4 (needs parallel = 4)
+
+[llm.servers.local30b]
+exe = "vendor/llama.cpp/llama-server.exe"
+model = "models/llm/typhoon2.5-qwen3-30b-a3b.Q4_K_M.gguf"
+alias = "pailin-30b"
+port = 8080
+autostart = "always"                 # always | on_demand | never
+adopt_existing = true
+ctx = 24576
+parallel = 3
+placement = "fit"                    # fit | pinned | all_gpu (bench llm --tune writes pinned + pinned_n_cpu_moe)
+fit_target_mib = 3584
+pinned_n_cpu_moe = 0
+n_cpu_moe_step = 2
+threads = 8
+slot_save_dir = "data/kv"
+extra_args = ["-kvu", "-fa", "on", "-ctk", "q8_0", "-ctv", "q8_0", "-lm", "none", "--temp", "0.6", "--top-p", "0.95", "--repeat-penalty", "1.05", "--cache-reuse", "256", "--metrics"]
+
+[llm.servers.local4b]
+exe = "vendor/llama.cpp/llama-server.exe"
+model = "models/llm/typhoon2.5-qwen3-4b.Q4_K_M.gguf"
+alias = "pailin-4b"
+port = 8081
+autostart = "on_demand"
+adopt_existing = true
+ctx = 16384
+parallel = 3
+placement = "all_gpu"
+fit_target_mib = 3584
+pinned_n_cpu_moe = 0
+n_cpu_moe_step = 2
+threads = 8
+slot_save_dir = "data/kv"
+extra_args = ["-kvu", "-ngl", "all", "-fa", "on", "-ctk", "q8_0", "-ctv", "q8_0", "--temp", "0.6", "--top-p", "0.95", "--repeat-penalty", "1.05", "--cache-reuse", "256"]
+
+[llm.providers.local-30b]
+kind = "llamacpp"
+server = "local30b"
+base_url = "http://127.0.0.1:8080/v1"
+model = "pailin-30b"
+first_token_timeout_s = 4.0
+
+[llm.providers.local-4b]
+kind = "llamacpp"
+server = "local4b"
+base_url = "http://127.0.0.1:8081/v1"
+model = "pailin-4b"
+first_token_timeout_s = 2.0
+
+[llm.providers.typhoon-api]
+kind = "openai_compat"
+flavor = "typhoon"
+cloud = true
+base_url = "https://api.opentyphoon.ai/v1"
+model = "typhoon-v2.5-30b-a3b-instruct"
+api_key_env = "TYPHOON_API_KEY"
+first_token_timeout_s = 6.0
+extra_body = { repetition_penalty = 1.05 }
+
+[llm.providers.gemini]
+kind = "openai_compat"
+flavor = "gemini"
+cloud = true
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+model = "gemini-3.5-flash-lite"
+api_key_env = "GEMINI_API_KEY"
+first_token_timeout_s = 8.0
+reasoning_effort = "minimal"
+
+[tts]
+identity_chain = ["premwadee"]       # appended after the character's own chain; add "offline" for Piper
+captions_fallback = true
+first_audio_timeout_s = 2.0
+later_timeout_s = 4.0
+first_retries = 0
+later_retries = 1
+max_in_flight = 2
+max_queued_segments = 8
+filler_after_s = 1.2
+filler_min_interval_s = 30
+breaker_failures = 3                 # 3 failures in 60 s take a backend out for 120 s
+breaker_window_s = 60.0
+breaker_cooldown_s = 120.0
+cache_dir = "data/cache/tts"
+
+[tts.identities.premwadee]
+voice = "th-TH-PremwadeeNeural"
+rate = "+8%"
+pitch = "+20Hz"
+volume = "+0%"
+backends = ["edge", "azure"]         # same voice => per-segment substitution allowed; S1 may reorder
+
+[tts.identities.offline]
+voice = "models/tts/th_TH-tsync2-medium.onnx"
+backends = ["piper"]                 # whole utterances only; non-commercial voice
+
+[tts.backends.edge]
+kind = "edge"
+
+[tts.backends.azure]
+kind = "azure"
+key_env = "AZURE_SPEECH_KEY"
+region_env = "AZURE_SPEECH_REGION"
+tier = "F0"                          # F0: 20 transactions / 60 s, not adjustable
+requests_per_min = 18
+min_chars_when_primary_f0 = 60
+hedge_first_chunk = false            # allowed only when tier = "S0"
+
+[tts.backends.piper]
+kind = "piper"
+lexicon = "characters/{character}/lexicon.toml"
+
+[tts.chunker]
+first_min_chars = 8
+first_max_chars = 60
+min_chars = 40
+max_chars = 160
+strong_min_chars = 20
+stall_flush_ms = 500
+
+[brain]
+post_speech_gap_s = 0.3
+chat_min_interval_s = 4.0
+chat_min_interval_voice_s = 8.0
+chat_gather_s = 1.0
+chat_k = 3
+idle_after_s = 25.0
+idle_jitter_s = 5.0
+idle_max_s = 120.0
+decision_watchdog_s = 30.0
+max_tool_rounds = 2
+user_speaking_watchdog_s = 20.0
+opener_repeat_ratio = 0.3
+critical_cut_wait_ms = 150
+
+[brain.budget]
+static_tokens = 1800
+context_tokens = 1500
+history_tokens = 5000
+tail_voice_tokens = 250
+tail_chat_tokens = 450
+cache_alarm_ratio = 0.85
+
+[chat]
+enabled = true
+sources = ["twitch_irc"]             # M1: twitch_irc | youtube_poll | fake ; M3: twitch_eventsub, youtube_grpc, alerts
+max_msg_chars = 300
+silence_timeout_s = 300.0            # restart an adapter after 5 minutes without traffic
+restart_backoff_s = [1.0, 30.0]
+
+[chat.twitch_irc]
+channel = ""                         # login name from twitch.tv/<name>
+url = "wss://irc-ws.chat.twitch.tv:443"
+
+[chat.youtube_poll]
+api_key_env = "YOUTUBE_API_KEY"
+video_id = ""
+handle = ""
+min_interval_s = 2.0
+
+[chat.window]
+horizon_s = 40.0
+must_ack_ttl_s = 600.0
+temperature = 0.6
+user_cooldown_s = 60.0
+dedupe_lru = 5000
+
+[memory]
+core_slots = 16
+slot_max_chars = 120
+max_writes_per_session = 8
+min_write_interval_s = 120
+chat_sourced = "quarantine"          # quarantine | allow
+recall_k = 2
+viewer_facts_per_viewer = 3
+viewer_facts_max_viewers = 5
+episode_after_idle_s = 1800
+backup_keep = 14
+backup_dir = "data/backups"
+ops_db = "data/ops.db"
+
+[safety]
+base_lists = "config/filters/base"
+private_lists = "config/filters/private"
+prev_tail_chars = 40
+politics = "review"                  # review | block | allow
+mask_text = "[ลิงก์]"
+tier1 = "off"                        # off | on | strict (M2)
+tier1_block = 0.8
+tier1_review = 0.5
+tier1_timeout_ms = 300
+output_hold_ms = 250
+fail_closed_categories = ["monarchy_112"]
+auto_strict_after = 3
+auto_strict_window_s = 300
+auto_strict_mute_s = 600
+auto_freeze_after = 0                # 0 = off (opt-in)
+filtered_text = "Filtered."
+review_mode = false                  # M2
+
+[safety.platform_overlays]           # per-platform filter overlays, e.g. twitch = "config/filters/platform/twitch.toml"
+
+[avatar]
+sink = "vts"                         # vts | browser (M6) | none
+fps = 60
+lead_ms = 40
+jitter_fallback_fps = 30
+jitter_limit_ms = 8.0                # p95 ticker jitter above this drops to jitter_fallback_fps
+idle_motion = true
+emotion_fade_s = 0.3
+request_timeout_s = 2.0
+max_inflight = 8
+reconnect_backoff_s = [1.0, 10.0]
+discovery_timeout_s = 2.5
+
+[panel]
+host = "127.0.0.1"
+open_browser = true
+ws_max_hz = 20.0
+
+[tools]
+mode = "live"                        # live | dry_run | off
+approval_timeout_s = 20
+default_timeout_s = 5.0
+timeout_max_s = 600
+
+[games]                              # M4
+enabled = false
+force_max_retries = 3
+result_timeout_s = 20.0
+action_strategy = "auto"             # auto (grammar on llama.cpp, tools on cloud) | grammar | tools
+
+[logging]
+level = "INFO"                       # DEBUG | INFO | WARNING | ERROR
+dir = "logs"                         # logs/<date>/<proc>.log + .jsonl
+max_mb = 20
+backups = 5
+keep_days = 14
+jsonl = true
+console = true
+
+[launcher]
+keep_llm = true                      # leave an adopted llama-server running on exit
+core_timeout_s = 5.0                 # no heartbeat answer for this long = wedged core
+graceful_timeout_s = 5.0             # CTRL_BREAK, then TerminateProcess
+restart_backoff_s = [0.5, 30.0]
+crash_loop_restarts = 5              # more than this many restarts ...
+crash_loop_window_s = 120.0          # ... within this window marks the component FAILED
+llm_health_interval_s = 2.0
+llm_health_failures = 3
+llm_load_timeout_s = 300.0
+llm_max_load_failures = 3
+vram_alarm_mib = 500
+gpu_poll_s = 5.0
+keep_awake = true
+
+# --- profiles: deep-merged over everything above ------------------------------------------
+
+[profiles.stream]                    # the default: 30B on the GPU, voice, chat
+
+[profiles.light.llm]
+chain = ["local-4b", "typhoon-api", "gemini"]
+
+[profiles.light.llm.servers.local30b]
+autostart = "never"
+
+[profiles.light.llm.servers.local4b]
+autostart = "always"
+
+[profiles.gaming.llm]
+chain = ["local-4b", "typhoon-api", "gemini"]
+
+[profiles.gaming.llm.servers.local30b]
+autostart = "never"
+
+[profiles.gaming.llm.servers.local4b]
+autostart = "always"
+ctx = 8192
+
+[profiles.text.app]
+voice_worker = false
+
+[profiles.text.chat]
+enabled = false
+
+[profiles.offline.llm]
+chain = ["local-4b"]
+
+[profiles.offline.llm.servers.local30b]
+autostart = "never"
+
+[profiles.offline.llm.servers.local4b]
+autostart = "always"
+
+[profiles.offline.tts]
+identity_chain = ["offline"]
+
+[profiles.offline.chat]
+enabled = false
+
+[profiles.ci.app]
+fakes = true
+voice_worker = true
+
+[profiles.ci.chat]
+sources = ["fake"]

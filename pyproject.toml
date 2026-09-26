@@ -1,46 +1,100 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
 
 [project]
-name = "pailin-workspace"
-version = "0.2.0"
-description = "ไพลิน (Pailin) – AI VTuber monorepo workspace"
+name = "aivtube"
+version = "0.1.0"
+description = "Self-hosted, Neuro-sama-style AI VTuber for Thai streamers (default character: ไพลิน / Pailin)"
 readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "numpy>=2.1,<3",
+  "websockets>=17.1,<18",
+  "openai==3.19.2",           # brings httpx2; SSE streaming + cancellation
+  "httpx2>=2.13,<3",          # used directly for Twitch/YouTube/llama-server REST
+  "aiohttp>=3.14,<4",         # control panel HTTP + WS
+  "pydantic>=2.13,<3",
+  "pydantic-settings>=2.6,<3",
+  "python-dotenv>=1.0,<2",
+  "tomli-w>=1.0,<2",
+  "platformdirs>=4,<5",
+  "pythainlp==5.3.8",         # core only, no [full]
+  "pyahocorasick==2.3.1",
+  "jsonschema==4.26.0",
+  "json-repair==0.63.5",
+]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21.0",
-    "ruff>=0.1.0",
-    "mypy>=1.0",
+voice = [
+  "sounddevice==0.5.6",       # Windows wheel bundles PortAudio (WASAPI); imported lazily
+  "soxr==1.1.0",
+  "onnxruntime==1.30.0",      # Silero VAD (torch-free)
+  "sherpa-onnx==1.13.8",      # Typhoon ASR Realtime int8 (CPU)
+  "sherpa-onnx-core==1.13.8", # native libs incl. its own onnxruntime (not always pulled transitively)
+  "edge-tts==7.2.8",
+  "av==18.1.0",               # stateful streaming MP3 decode (bundles FFmpeg libs)
 ]
+aec = ["livekit==1.1.20"]      # rtc.AudioProcessingModule (WebRTC AEC3) only
+tts-azure = ["azure-cognitiveservices-speech==1.51.2"]
+stt-pythaiasr = ["pythaiasr==2.1.0"]
+dev = [
+  "pytest>=8",
+  "pytest-asyncio>=0.24",
+  "pytest-timeout>=2.3",
+  "hypothesis>=6.100",
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "soundfile==0.14.0",
+]
+# What setup.ps1 installs on the streaming PC. No torch anywhere in this venv.
+pc = ["aivtube[voice,aec,tts-azure,stt-pythaiasr]"]
+
+[project.scripts]
+aivtube = "aivtube.cli:main"
+
+[project.entry-points."aivtube.plugins"]
+builtin = "aivtube.plugins:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aivtube"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 100
+src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
+ignore = [
+  "RUF001", "RUF002", "RUF003",  # Thai text legitimately contains "ambiguous" unicode
+  "E501",                        # long Thai string literals; the formatter handles code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "ASYNC"]
 
 [tool.mypy]
-python_version = "3.10"
-warn_return_any = true
+python_version = "3.12"  # numpy 2.5 stubs use PEP 695 `type` statements
 warn_unused_configs = true
-disallow_untyped_defs = false
+ignore_missing_imports = true
+files = ["src/aivtube"]
 
 [[tool.mypy.overrides]]
-module = [
-    "google.generativeai",
-    "speech_recognition",
-    "pygame",
-    "gtts",
-    "edge_tts",
-]
-ignore_missing_imports = true
+module = ["aivtube.contracts.*", "aivtube.brain.*", "aivtube.ipc.*"]
+strict = true
 
 [tool.pytest.ini_options]
-testpaths = ["packages/*/tests"]
+testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 120
+markers = [
+  "nightly: needs real models/binaries (set AIVTUBE_TEST_ASSETS); skipped by default in CI",
+  "hardware: needs the streaming PC (GPU, audio devices, VTube Studio)",
+  "windows: Windows-only behaviour",
+  "network: talks to the public internet",
+  "timing: wall-clock timing assertions (may be flaky on loaded runners)",
+]
+addopts = "-ra"

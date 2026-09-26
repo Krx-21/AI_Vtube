@@ -1,0 +1,119 @@
+{
+  "kind": "youtube#liveChatMessageListResponse",
+  "pollingIntervalMillis": 5000,
+  "nextPageToken": "page-1",
+  "pageInfo": {
+    "totalResults": 4,
+    "resultsPerPage": 4
+  },
+  "items": [
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-backlog-1",
+      "id": "LCC.backlog-1",
+      "snippet": {
+        "type": "textMessageEvent",
+        "liveChatId": "live-chat-1",
+        "authorChannelId": "UCmali0000000000000000001",
+        "publishedAt": "2026-09-25T12:00:01.000Z",
+        "hasDisplayContent": true,
+        "displayMessage": "สวัสดีค่ะไพลิน",
+        "textMessageDetails": {
+          "messageText": "สวัสดีค่ะไพลิน"
+        }
+      },
+      "authorDetails": {
+        "channelId": "UCmali0000000000000000001",
+        "channelUrl": "http://www.youtube.com/channel/UCmali0000000000000000001",
+        "displayName": "มะลิ",
+        "profileImageUrl": "https://yt3.ggpht.example/avatar.jpg",
+        "isVerified": false,
+        "isChatOwner": false,
+        "isChatSponsor": false,
+        "isChatModerator": false
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-backlog-2",
+      "id": "LCC.backlog-2",
+      "snippet": {
+        "type": "textMessageEvent",
+        "liveChatId": "live-chat-1",
+        "authorChannelId": "UCmod00000000000000000002",
+        "publishedAt": "2026-09-25T12:00:02.000Z",
+        "hasDisplayContent": true,
+        "displayMessage": "ทุกคนอย่าสแปมนะ",
+        "textMessageDetails": {
+          "messageText": "ทุกคนอย่าสแปมนะ"
+        }
+      },
+      "authorDetails": {
+        "channelId": "UCmod00000000000000000002",
+        "channelUrl": "http://www.youtube.com/channel/UCmod00000000000000000002",
+        "displayName": "ModBoss",
+        "profileImageUrl": "https://yt3.ggpht.example/avatar.jpg",
+        "isVerified": false,
+        "isChatOwner": false,
+        "isChatSponsor": false,
+        "isChatModerator": true
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-backlog-3",
+      "id": "LCC.backlog-3",
+      "snippet": {
+        "type": "textMessageEvent",
+        "liveChatId": "live-chat-1",
+        "authorChannelId": "UCmember00000000000000003",
+        "publishedAt": "2026-09-25T12:00:03.000Z",
+        "hasDisplayContent": true,
+        "displayMessage": "เมมเบอร์มาแล้ว",
+        "textMessageDetails": {
+          "messageText": "เมมเบอร์มาแล้ว"
+        }
+      },
+      "authorDetails": {
+        "channelId": "UCmember00000000000000003",
+        "channelUrl": "http://www.youtube.com/channel/UCmember00000000000000003",
+        "displayName": "Member",
+        "profileImageUrl": "https://yt3.ggpht.example/avatar.jpg",
+        "isVerified": false,
+        "isChatOwner": false,
+        "isChatSponsor": true,
+        "isChatModerator": false
+      }
+    },
+    {
+      "kind": "youtube#liveChatMessage",
+      "etag": "etag-backlog-4",
+      "id": "LCC.backlog-4",
+      "snippet": {
+        "type": "superChatEvent",
+        "liveChatId": "live-chat-1",
+        "authorChannelId": "UCdonor0000000000000000004",
+        "publishedAt": "2026-09-25T12:00:04.000Z",
+        "hasDisplayContent": true,
+        "displayMessage": "100.00 THB from ผู้สนับสนุน: \"เป็นกำลังใจให้นะ\"",
+        "superChatDetails": {
+          "amountMicros": "100000000",
+          "currency": "THB",
+          "amountDisplayString": "100.00 THB",
+          "userComment": "เป็นกำลังใจให้นะ",
+          "tier": 2
+        }
+      },
+      "authorDetails": {
+        "channelId": "UCdonor0000000000000000004",
+        "channelUrl": "http://www.youtube.com/channel/UCdonor0000000000000000004",
+        "displayName": "ผู้สนับสนุน",
+        "profileImageUrl": "https://yt3.ggpht.example/avatar.jpg",
+        "isVerified": false,
+        "isChatOwner": false,
+        "isChatSponsor": false,
+        "isChatModerator": false
+      }
+    }
+  ]
+}

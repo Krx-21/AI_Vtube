@@ -1,0 +1,14 @@
+# config/filters/base/self_harm.toml: tier-0 base list, category "self_harm" (ARCHITECTURE.md §7).
+# Suicide and self-harm. Chat input: DROP plus a panel alert so a human can check on the
+# viewer. Speech, tool, memory: BLOCK. Everyday hyperbole with ตาย alone (ขำจนจะตาย,
+# หิวจะตาย, ตายแล้ว) must pass, so ตาย is never listed on its own. "kms" is left out: it
+# is also "kilometres".
+# Format: see README.md in this folder.
+category = "self_harm"
+
+token = [
+  "ฆ่าตัวตาย", "อยากตาย", "ไม่อยากมีชีวิตอยู่", "อยากจบชีวิต", "จบชีวิตตัวเอง",
+  "ทำร้ายตัวเอง", "กรีดข้อมือ", "กรีดแขน", "ผูกคอตาย", "กินยาตาย", "กระโดดตึกตาย",
+  "suicide", "suicidal", "kill myself", "self harm", "self-harm", "cut myself",
+  "want to die", "end my life",
+]

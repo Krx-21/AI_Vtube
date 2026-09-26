@@ -1,0 +1,139 @@
+# models/manifest.toml: pinned external models and binaries (ARCHITECTURE.md §9).
+# Read by `aivtube models {pull,verify}`, `aivtube setup` and the launcher preflight (§2.6).
+#
+# One table per artifact, [models.<name>], with:
+#   url          direct HTTPS download (pinned to a tag or commit, never a moving branch)
+#   sha256       hex digest; "" = not pinned yet (verify reports "unpinned" instead of failing)
+#   size         exact size in bytes; 0 = unknown
+#   licence      SPDX id or a short licence name
+#   required_by  config keys / components that need the file
+#   dest         destination relative to the repository root
+# Optional keys:
+#   variant      mutually exclusive choice (setup picks cuda-13.4 for driver >= R580, else 12.4)
+#   unpack       "zip" = extract into `dest` (a directory), keeping the archive's layout
+#   optional     true = not downloaded by default
+#   notes        free text
+schema_version = 1
+
+# --- VAD -----------------------------------------------------------------------------------
+
+[models.silero_vad]
+url = "https://raw.githubusercontent.com/snakers4/silero-vad/v6.2.3/src/silero_vad/data/silero_vad.onnx"
+sha256 = "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"
+size = 2327524
+licence = "MIT"
+required_by = ["vad.model", "voice.vad"]
+dest = "models/vad/silero_vad.onnx"
+notes = "Silero VAD v6.2.3; the same file is committed as tests/fixtures/silero_vad.onnx."
+
+# --- STT: Typhoon ASR Realtime, our own int8 ONNX export (CC-BY-4.0, attribution in NOTICE) ---
+# Published by .github/workflows/models-export.yml as assets of the GitHub Release
+# `models-typhoon-rt-v1`. ONNX export is not byte-reproducible across environments, so the
+# encoder/decoder/joiner digests are pinned from that release's SHA256SUMS after it is
+# published (about 131 MB + 4.6 MB + 2.1 MB). tokens.txt is deterministic.
+
+[models.typhoon_rt_encoder]
+url = "https://github.com/Krx-21/AI_Vtube/releases/download/models-typhoon-rt-v1/encoder.int8.onnx"
+sha256 = ""
+size = 0
+licence = "CC-BY-4.0"
+required_by = ["stt.backends.typhoon_rt"]
+dest = "models/stt/typhoon-asr-rt-int8/encoder.int8.onnx"
+
+[models.typhoon_rt_decoder]
+url = "https://github.com/Krx-21/AI_Vtube/releases/download/models-typhoon-rt-v1/decoder.int8.onnx"
+sha256 = ""
+size = 0
+licence = "CC-BY-4.0"
+required_by = ["stt.backends.typhoon_rt"]
+dest = "models/stt/typhoon-asr-rt-int8/decoder.int8.onnx"
+
+[models.typhoon_rt_joiner]
+url = "https://github.com/Krx-21/AI_Vtube/releases/download/models-typhoon-rt-v1/joiner.int8.onnx"
+sha256 = ""
+size = 0
+licence = "CC-BY-4.0"
+required_by = ["stt.backends.typhoon_rt"]
+dest = "models/stt/typhoon-asr-rt-int8/joiner.int8.onnx"
+
+[models.typhoon_rt_tokens]
+url = "https://github.com/Krx-21/AI_Vtube/releases/download/models-typhoon-rt-v1/tokens.txt"
+sha256 = "233bcf07eb4127b89138f779d532459fdeb9896b81376083e1670dc9f1e61357"
+size = 35094
+licence = "CC-BY-4.0"
+required_by = ["stt.backends.typhoon_rt"]
+dest = "models/stt/typhoon-asr-rt-int8/tokens.txt"
+
+[models.typhoon_rt_readme]
+url = "https://github.com/Krx-21/AI_Vtube/releases/download/models-typhoon-rt-v1/README.md"
+sha256 = ""
+size = 0
+licence = "CC-BY-4.0"
+required_by = ["stt.backends.typhoon_rt"]
+dest = "models/stt/typhoon-asr-rt-int8/README.md"
+notes = "CC-BY-4.0 attribution for the export; keep it next to the model files."
+
+# --- LLM: Typhoon2.5-Qwen3 GGUFs (mradermacher quants embed the chat template, §4.11/R14) -----
+
+[models.llm_4b]
+url = "https://huggingface.co/mradermacher/typhoon2.5-qwen3-4b-GGUF/resolve/16fc91f8e633c00ff6a0c62e7402bc2c281a0ff5/typhoon2.5-qwen3-4b.Q4_K_M.gguf"
+sha256 = "791ea44712437cb866a342395726021690b1284a13986aa13144584c61d0ead5"
+size = 2497279680
+licence = "Apache-2.0"
+required_by = ["llm.servers.local4b"]
+dest = "models/llm/typhoon2.5-qwen3-4b.Q4_K_M.gguf"
+notes = "Downloaded before the 30B so the light profile works first. OpenTyphoon terms apply."
+
+[models.llm_30b]
+url = "https://huggingface.co/mradermacher/typhoon2.5-qwen3-30b-a3b-GGUF/resolve/bd864377ce84ea9a76533245edb5f2f3a9a08778/typhoon2.5-qwen3-30b-a3b.Q4_K_M.gguf"
+sha256 = "cd088c37aaaa9631bbc1a9d75c6cbd99e5f14d560d538274eb3ac8047393e92e"
+size = 18556685024
+licence = "Apache-2.0"
+required_by = ["llm.servers.local30b"]
+dest = "models/llm/typhoon2.5-qwen3-30b-a3b.Q4_K_M.gguf"
+notes = "Resumable background download; the profile stays `light` until this verifies."
+
+# --- llama.cpp b11177 Windows CUDA builds (§9): llama zip + matching cudart zip -------------
+
+[models.llama_cpp_cuda13]
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b11177/llama-b11177-bin-win-cuda-13.4-x64.zip"
+sha256 = "35821fa553fc69feef4c3861456249ff6b5a282da67c4f8634688ad024149621"
+size = 150247793
+licence = "MIT"
+required_by = ["llm.servers.local30b.exe", "llm.servers.local4b.exe"]
+dest = "vendor/llama.cpp"
+unpack = "zip"
+variant = "cuda-13.4"
+notes = "NVIDIA driver R580 or newer."
+
+[models.cudart_cuda13]
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b11177/cudart-llama-bin-win-cuda-13.4-x64.zip"
+sha256 = "738f8c251ac22b70c3ae6f83a10cf222725df0395246a2cf58f32bdb85fbe668"
+size = 423535356
+licence = "NVIDIA CUDA EULA (redistributable runtime)"
+required_by = ["llm.servers.local30b.exe", "llm.servers.local4b.exe"]
+dest = "vendor/llama.cpp"
+unpack = "zip"
+variant = "cuda-13.4"
+notes = "The cudart DLLs must sit next to llama-server.exe."
+
+[models.llama_cpp_cuda12]
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b11177/llama-b11177-bin-win-cuda-12.4-x64.zip"
+sha256 = "14e756ba453e29db57578c1e5791245fe05c893671d3b334e08482ba1a0946bb"
+size = 254724695
+licence = "MIT"
+required_by = ["llm.servers.local30b.exe", "llm.servers.local4b.exe"]
+dest = "vendor/llama.cpp"
+unpack = "zip"
+variant = "cuda-12.4"
+notes = "For NVIDIA drivers older than R580."
+
+[models.cudart_cuda12]
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b11177/cudart-llama-bin-win-cuda-12.4-x64.zip"
+sha256 = "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"
+size = 391443627
+licence = "NVIDIA CUDA EULA (redistributable runtime)"
+required_by = ["llm.servers.local30b.exe", "llm.servers.local4b.exe"]
+dest = "vendor/llama.cpp"
+unpack = "zip"
+variant = "cuda-12.4"

@@ -1,0 +1,27 @@
+# characters/pailin/lexicon.toml: TTS pronunciation hints.
+# Piper (the offline voice) drops Latin letters, so English words she uses often are spelled in
+# Thai script here. Keys match case-insensitively on whole words; cloud voices (edge/Azure) read
+# English natively and only use entries they need.
+[words]
+"Pailin" = "ไพลิน"
+"AI" = "เอไอ"
+"VTuber" = "วีทูบเบอร์"
+"VTube Studio" = "วีทูบสตูดิโอ"
+"Twitch" = "ทวิช"
+"YouTube" = "ยูทูบ"
+"TikTok" = "ติ๊กต็อก"
+"Discord" = "ดิสคอร์ด"
+"OBS" = "โอบีเอส"
+"Minecraft" = "มายคราฟ"
+"Valorant" = "วาโลแรนท์"
+"ROV" = "อาร์โอวี"
+"GG" = "จีจี"
+"OK" = "โอเค"
+"live" = "ไลฟ์"
+"stream" = "สตรีม"
+"streamer" = "สตรีมเมอร์"
+"chat" = "แชท"
+"game" = "เกม"
+"sub" = "ซับ"
+"donate" = "โดเนท"
+"Filtered." = "ฟิลเทอร์ด"

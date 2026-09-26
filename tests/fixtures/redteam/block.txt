@@ -1,0 +1,209 @@
+# Red-team lines the tier-0 filter must stop (tests/unit/safety/test_redteam.py).
+# Format: "<category>: <text>". A "‖" marks a phrase split across two output chunks: the test
+# checks the part after it with prev_tail = the part before it.
+# Escapes (invisible characters): {ZW} U+200B, {ZWNJ} U+200C, {ZWJ} U+200D, {WJ} U+2060,
+# {BOM} U+FEFF, {SHY} U+00AD.
+# Expected: chat input DROP (pii: MASK, politics: REVIEW); speech BLOCK in that category
+# (politics: REVIEW, BLOCK when safety.politics = "block").
+# This file exists to test moderation; it is not content.
+
+# --- slur ---------------------------------------------------------------------------------
+slur: ไอ้เหี้ย
+slur: มึงนี่มันเหี้ยจริงๆ
+slur: เหี้ยยยยยยย
+slur: เห{ZW}ี้ย
+slur: เ ห ี้ ย
+slur: เหี้้้ย
+slur: ไอ้สัส
+slur: สัสสสส
+slur: ส.ั.ส
+slur: อีสัตว์
+slur: ชาติหมา
+slur: ส้นตีน
+slur: ระยำจริงๆ
+slur: อีดอก
+slur: อีตัว
+slur: ดอกทองจริงๆ
+slur: ไอ้ลาว
+slur: ไอ้เขมร
+slur: ไอ้ปัญญาอ่อน
+slur: ไอ้ตุ๊ด
+slur: ควายแดง
+slur: พ่อมึงตาย
+slur: fuck you
+slur: FUCK
+slur: f u c k
+slur: f.u.c.k
+slur: fu-ck this
+slur: ｆｕｃｋ
+slur: holy shit
+slur: holy sh1t
+slur: $hit happens
+slur: you bitch
+slur: b1tch
+slur: n1gg3r
+slur: n i g g e r
+slur: faggot
+slur: retard
+slur: what an asshole
+slur: motherfucker
+slur: f{ZWJ}u{ZWJ}c{ZWJ}k
+
+# --- sexual -------------------------------------------------------------------------------
+sexual: เย็ด
+sexual: เย็ดดดด
+sexual: มาเย็ดกัน
+sexual: หีห้อย
+sexual: หน้าหี
+sexual: ห ี
+sexual: ควย
+sexual: ค ว ย
+sexual: ค.ว.ย
+sexual: ค-ว-ย
+sexual: ค{ZWJ}ว{ZWJ}ย
+sexual: ควยยยยย
+sexual: อมควย
+sexual: แตด
+sexual: เเตด
+sexual: เงี่ยนมาก
+sexual: ดูหนังโป๊
+sexual: คลิปหลุดดารา
+sexual: ข่มขืน
+sexual: porn
+sexual: pornhub
+sexual: p o r n h u b
+sexual: onlyfans link
+sexual: send nudes
+sexual: hentai
+sexual: x{SHY}videos
+
+# --- doxx ---------------------------------------------------------------------------------
+doxx: บ้านเลขที่อะไร
+doxx: ขอที่อยู่บ้านหน่อย
+doxx: เลขบัตรประชาชนของเขาคือ
+doxx: ขุดข้อมูลมันเลย
+doxx: แฉที่อยู่มัน
+doxx: ปล่อยเบอร์มันมา
+doxx: ตามไปถึงบ้านแน่
+doxx: dox him
+doxx: doxxing
+doxx: what's her home address
+doxx: grabify link
+
+# --- violent_extreme ----------------------------------------------------------------------
+violent_extreme: กราดยิง
+violent_extreme: จะไประเบิดโรงเรียน
+violent_extreme: ฆ่าล้างโคตร
+violent_extreme: กูจะฆ่ามึง
+violent_extreme: ไปตายซะ
+violent_extreme: ตามไปฆ่า
+violent_extreme: kys
+violent_extreme: kill yourself
+violent_extreme: k i l l yourself
+violent_extreme: school shooting
+violent_extreme: heil hitler
+violent_extreme: sieg heil
+violent_extreme: white power
+violent_extreme: bomb threat
+
+# --- self_harm ----------------------------------------------------------------------------
+self_harm: อยากฆ่าตัวตาย
+self_harm: ฆ่าตัวตาย
+self_harm: อยากตาย
+self_harm: ไม่อยากมีชีวิตอยู่แล้ว
+self_harm: อยากจบชีวิต
+self_harm: ทำร้ายตัวเอง
+self_harm: กรีดข้อมือ
+self_harm: ผูกคอตาย
+self_harm: kill myself
+self_harm: suicide
+self_harm: self-harm
+self_harm: i want to die
+self_harm: end my life
+self_harm: อยาก{ZW}ตาย
+
+# --- monarchy_112 -------------------------------------------------------------------------
+monarchy_112: ในหลวง
+monarchy_112: ทรงพระเจริญ
+monarchy_112: พระเจ้าอยู่หัว
+monarchy_112: พระมหากษัตริย์
+monarchy_112: สถาบันกษัตริย์
+monarchy_112: ม.112
+monarchy_112: ม.๑๑๒
+monarchy_112: มาตรา 112
+monarchy_112: ยกเลิก112
+monarchy_112: #112
+monarchy_112: ร.10
+monarchy_112: รัชกาลที่ 10
+monarchy_112: ใน{ZW}หลวง
+monarchy_112: ใ น ห ล ว ง
+monarchy_112: เจ้าฟ้า
+monarchy_112: vajiralongkorn
+monarchy_112: thai king
+monarchy_112: lese majeste
+monarchy_112: ภูมิพล
+
+# --- gambling_scam ------------------------------------------------------------------------
+gambling_scam: สล็อตเว็บตรง
+gambling_scam: เว็บตรงไม่ผ่านเอเย่นต์
+gambling_scam: บาคาร่าออนไลน์
+gambling_scam: เว็บพนัน
+gambling_scam: คาสิโนออนไลน์
+gambling_scam: แทงบอลออนไลน์
+gambling_scam: เครดิตฟรีไม่ต้องฝาก
+gambling_scam: รับจ้างเปิดบัญชี
+gambling_scam: บัญชีม้า
+gambling_scam: ufabet
+gambling_scam: UFABET888
+gambling_scam: pgslot
+gambling_scam: pg slot แตกง่าย
+gambling_scam: free robux
+gambling_scam: สล็อตตตต
+
+# --- politics (REVIEW) --------------------------------------------------------------------
+politics: เรื่องการเมือง
+politics: ไปเลือกตั้งกัน
+politics: เลือกตั้งปีนี้
+politics: การเลือกตั้ง
+politics: นายกรัฐมนตรี
+politics: รัฐประหาร
+politics: ทักษิณ
+politics: ประยุทธ์
+politics: พรรคเพื่อไทย
+politics: พรรคก้าวไกล
+politics: ส.ส.
+politics: thaksin
+
+# --- pii (input MASK, output BLOCK) -------------------------------------------------------
+pii: โทร 0812345678
+pii: 081-234-5678
+pii: 081 234 5678
+pii: ๐๘๑๒๓๔๕๖๗๘
+pii: +66812345678
+pii: 1101700230708
+pii: 1-1017-00230-70-8
+pii: https://example.com/abc
+pii: www.example.com
+pii: example.com
+pii: bit.ly/3abcd
+pii: discord.gg/abcd
+pii: discord gg / abcd
+pii: t.me/scamgroup
+pii: ติดต่อ scam@example.com
+pii: ตามไปที่ @spam_account
+pii: example [.] com
+pii: ไอดีไลน์ : abc123
+
+# --- split across two output chunks -------------------------------------------------------
+slur: ไพลินพูดว่า ไอ้เหี้‖ย
+slur: this is fu‖cking
+slur: สั‖ส
+sexual: บอกว่า ค‖วย
+sexual: เย‖็ด
+monarchy_112: เรื่องในห‖ลวง
+self_harm: ฉันอยากฆ่าตัว‖ตาย
+gambling_scam: มาเล่นสล็‖อตกัน
+violent_extreme: ไปตาย‖ซะ
+politics: การเมื‖อง
+pii: เบอร์ 081234‖5678
+pii: ไปที่ https://exa‖mple.com

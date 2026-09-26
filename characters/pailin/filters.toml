@@ -1,0 +1,22 @@
+# characters/pailin/filters.toml: Pailin's own filter overlay (ARCHITECTURE.md §7).
+# Precedence: config/filters/base < config/filters/private < per-platform overlay < this file.
+# Empty on purpose: Pailin uses the base lists unchanged. The rule format is defined by
+# aivtube.safety (see config/filters/base/); the examples below show the intent only.
+#
+# Never loosen monarchy_112: that category is always fail-closed.
+#
+# Allow a word the base list over-blocks for this character:
+# [[allow]]
+# text = "หีบ"                 # "box"; a raw substring match would over-block it
+#
+# Block an extra word only for this character:
+# [[deny]]
+# category = "slur"
+# match = "token"              # token | substring | regex
+# text = "..."
+#
+# Hard-coded speech patch ("hard coding it out of her speech"):
+# [[replace]]
+# match = "regex"
+# text = "(?i)as an ai language model"
+# with = ""

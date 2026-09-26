@@ -1,0 +1,16 @@
+{
+  "chat_template_caps": {
+    "supports_object_arguments": true,
+    "supports_parallel_tool_calls": true,
+    "supports_preserve_reasoning": false,
+    "supports_reasoning_effort": false,
+    "supports_string_content": true,
+    "supports_system_role": true,
+    "supports_tool_calls": true,
+    "supports_tools": true,
+    "supports_typed_content": false
+  },
+  "model_alias": "pailin-4b",
+  "total_slots": 2,
+  "build_info": "b1-1ab7e5a"
+}

@@ -1,0 +1,67 @@
+AI_Vtube (aivtube)
+Copyright (c) 2025-2026 Krx-21
+Licensed under the MIT License (see LICENSE).
+
+This project uses, downloads or is designed to work with the third-party works below. They are
+NOT covered by this project's MIT licence and remain under their own terms.
+
+------------------------------------------------------------------------------------------------
+Typhoon ASR Realtime (speech recognition model)
+------------------------------------------------------------------------------------------------
+Model: typhoon-ai/typhoon-asr-realtime, https://huggingface.co/typhoon-ai/typhoon-asr-realtime
+Authors: the Typhoon team at SCB 10X (Warit Sirichotedumrong, Adisai Na-Thalang, Potsawee
+Manakul, Pittawat Taveekitworachai, Sittipong Sripaisarnmongkol, Kunat Pipatanakul).
+Licence: Creative Commons Attribution 4.0 International (CC-BY-4.0),
+https://creativecommons.org/licenses/by/4.0/
+Changes: this project publishes an ONNX export of the model with 8-bit dynamic quantisation
+(encoder, decoder and joiner exported separately, ONNX metadata added) for use with
+sherpa-onnx. The export is produced by tools/export_typhoon_rt_onnx.py and published as the
+GitHub Release "models-typhoon-rt-v1" together with an attribution README. No retraining was
+done. This export is not made or endorsed by SCB 10X or the Typhoon team. Use of the model is
+also subject to the OpenTyphoon terms: https://opentyphoon.ai/tac
+Citation: Sirichotedumrong et al., "Typhoon ASR Real-time: FastConformer-Transducer for Thai
+Automatic Speech Recognition", arXiv:2601.13044 (2026).
+
+------------------------------------------------------------------------------------------------
+Typhoon2.5-Qwen3 language models
+------------------------------------------------------------------------------------------------
+typhoon-ai/typhoon2.5-qwen3-30b-a3b and typhoon-ai/typhoon2.5-qwen3-4b (Apache-2.0, based on
+Qwen3), downloaded at setup as GGUF quantisations by mradermacher. Not redistributed by this
+repository. The OpenTyphoon terms apply: https://opentyphoon.ai/tac
+
+------------------------------------------------------------------------------------------------
+Silero VAD
+------------------------------------------------------------------------------------------------
+silero_vad.onnx (v6.2.3), https://github.com/snakers4/silero-vad
+Copyright (c) 2020-present Silero Team. MIT License.
+A copy is committed as tests/fixtures/silero_vad.onnx; its licence text is in
+tests/fixtures/silero_vad.LICENSE.txt.
+
+------------------------------------------------------------------------------------------------
+Live2D
+------------------------------------------------------------------------------------------------
+This repository contains no Live2D Cubism Core, no Cubism SDK and no Live2D model files.
+VTube Studio renders the avatar as a separate application that the streamer installs. Live2D
+sample models (for example the "Mao" model used in configuration examples) are provided by
+Live2D Inc. under the Live2D Free Material License Agreement and the sample model terms of use;
+check those terms, including the limits on commercial use, before streaming with them:
+https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html
+https://www.live2d.com/eula/live2d-sample-model-terms_en.html
+A future browser renderer (M6) requires the user to download Cubism Core from Live2D directly.
+
+------------------------------------------------------------------------------------------------
+Neuro Game SDK compatibility
+------------------------------------------------------------------------------------------------
+The M4 game server is compatible with the Neuro Game SDK protocol
+(https://github.com/VedalAI/neuro-sdk). This project is independent: it is not affiliated with,
+endorsed by or connected to Vedal, VedalAI or the Neuro-sama project, and "Neuro-sama" is used
+only to describe the protocol and the design inspiration.
+
+------------------------------------------------------------------------------------------------
+Other downloaded tools
+------------------------------------------------------------------------------------------------
+- llama.cpp (ggml-org), MIT License; the Windows CUDA builds bundle NVIDIA CUDA runtime
+  libraries under the NVIDIA CUDA EULA (redistributable components).
+- VTube Studio (DenchiSoft) is installed separately by the user; its own terms apply,
+  including the paid DLC for monetised streams.
+- Piper voice th_TH-tsync2-medium (optional fallback) is licensed for non-commercial use only.

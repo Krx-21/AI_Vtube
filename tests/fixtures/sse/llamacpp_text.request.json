@@ -1,0 +1,21 @@
+{
+  "model": "pailin-4b",
+  "stream": true,
+  "max_tokens": 32,
+  "temperature": 0.6,
+  "top_p": 0.95,
+  "repeat_penalty": 1.05,
+  "seed": 7,
+  "messages": [
+    {
+      "role": "system",
+      "content": "คุณคือไพลิน สาวไทยร่าเริง ตอบสั้นๆ เป็นภาษาไทย"
+    },
+    {
+      "role": "user",
+      "content": "สวัสดีไพลิน วันนี้เป็นยังไงบ้าง"
+    }
+  ],
+  "id_slot": 0,
+  "cache_prompt": true
+}

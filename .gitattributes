@@ -1,0 +1,6 @@
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.onnx binary
+*.gguf binary
+tests/fixtures/sse/*.sse -text
+*.jinja text eol=lf

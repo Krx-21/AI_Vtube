@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สถานะ (OBS)</title>
+<style>
+/* OBS browser source: a small state pill. URL options: ?token=…&character=pailin&always=1 */
+html, body { margin: 0; background: transparent; overflow: hidden; }
+body { padding: 12px; font-family: "Noto Sans Thai", "Leelawadee UI", "Segoe UI", system-ui, sans-serif; }
+#pill {
+  display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 999px;
+  background: rgba(10, 12, 18, .72); color: #fff; font: 700 22px/1.2 inherit;
+  opacity: 0; transition: opacity .2s ease-out;
+}
+#pill.show { opacity: 1; }
+#dot { width: 14px; height: 14px; border-radius: 50%; background: #9aa3b3; }
+#pill[data-state="deciding"] #dot { background: #7aa2ff; }
+#pill[data-state="speaking"] #dot { background: #3ecf8e; }
+#pill[data-state="paused"] #dot { background: #ff5c5c; }
+#pill[data-state="pre_show"] #dot { background: #f5a524; }
+@media (prefers-reduced-motion: reduce) { #pill { transition: none; } }
+</style>
+</head>
+<body>
+<div id="pill" role="status" aria-live="polite"><span id="dot"></span><span id="label"></span></div>
+<script>
+"use strict";
+(() => {
+  const params = new URLSearchParams(location.search);
+  const token = params.get("token") || "";
+  const character = params.get("character") || "";
+  const always = params.get("always") === "1";
+  const LABELS = {
+    booting: "กำลังเริ่ม…", pre_show: "เตรียมไลฟ์", idle: "พร้อมคุย", deciding: "กำลังคิด…",
+    speaking: "กำลังพูด", paused: "พักสักครู่",
+  };
+  const pill = document.getElementById("pill");
+  function render(state) {
+    pill.dataset.state = state;
+    document.getElementById("label").textContent = LABELS[state] || state;
+    pill.classList.toggle("show", always || state === "deciding" || state === "paused" || state === "pre_show");
+  }
+  let backoff = 500;
+  function connect() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const q = new URLSearchParams({ token, types: "StateChanged" });
+    if (character) q.set("character", character);
+    const ws = new WebSocket(`${proto}://${location.host}/ws?${q}`);
+    ws.addEventListener("open", () => { backoff = 500; });
+    ws.addEventListener("message", (msg) => {
+      let frame;
+      try { frame = JSON.parse(msg.data); } catch (_) { return; }
+      if (frame.kind === "hello") {
+        const states = frame.states || {};
+        const state = states[character] || states[""] || Object.values(states)[0];
+        if (state) render(state);
+        return;
+      }
+      for (const ev of frame.events || []) {
+        if (ev.type === "StateChanged" && (!character || !ev.character || ev.character === character)) render(ev.new);
+      }
+    });
+    ws.addEventListener("close", () => {
+      setTimeout(connect, backoff);
+      backoff = Math.min(backoff * 2, 10000);
+    });
+  }
+  if (token) connect();
+})();
+</script>
+</body>
+</html>
