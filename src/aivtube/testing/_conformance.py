@@ -298,3 +298,12 @@ if TYPE_CHECKING:
 
     def _brain_control(x: Brain) -> BrainControl:
         return x
+
+    # speech output (WP4: ipc + voice worker)
+    from aivtube.speech import BusSpeechOutput, ConsoleSpeechOutput
+
+    def _bus_speech_output(x: BusSpeechOutput) -> speech.SpeechOutput:
+        return x
+
+    def _console_speech_output(x: ConsoleSpeechOutput) -> speech.SpeechOutput:
+        return x
