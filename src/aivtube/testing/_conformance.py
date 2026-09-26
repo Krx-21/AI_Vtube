@@ -190,6 +190,22 @@ if TYPE_CHECKING:
     def _live_avatar_driver(x: LiveAvatarDriver) -> avatar.AvatarDriver:
         return x
 
+    # memory + tools (WP memory)
+    from aivtube.memory import SqliteMemory
+    from aivtube.tools import ForgetTool, PolicyToolRegistry, RememberTool
+
+    def _sqlite_memory(x: SqliteMemory) -> memory.MemoryStore:
+        return x
+
+    def _policy_tool_registry(x: PolicyToolRegistry) -> tools.ToolRegistry:
+        return x
+
+    def _remember_tool(x: RememberTool) -> tools.Tool:
+        return x
+
+    def _forget_tool(x: ForgetTool) -> tools.Tool:
+        return x
+
     # safety (WP8)
     from aivtube.safety import KeywordRegexFilter, LayeredSafetyGate
 
